@@ -2,6 +2,7 @@
 
 import asyncio
 import contextvars
+import json
 import os
 import tempfile
 from typing import Any, Dict, List, Optional
@@ -44,7 +45,38 @@ def _readable_dirs() -> List[str]:
     return sorted(dirs)
 
 
-async def _run_cli(args: List[str], stdin: Optional[str], timeout: float, label: str) -> Optional[Dict[str, Any]]:
+def _parse_claude_json(out: str) -> Dict[str, Any]:
+    """`claude -p --output-format json`: answer plus real token usage."""
+    data = json.loads(out, strict=False)
+    if data.get("is_error"):
+        raise RuntimeError(str(data.get("result") or data.get("subtype") or "claude error")[:300])
+    u = data.get("usage") or {}
+    inp = (u.get("input_tokens") or 0) + (u.get("cache_creation_input_tokens") or 0) + (u.get("cache_read_input_tokens") or 0)
+    out_tokens = u.get("output_tokens") or 0
+    thinking = (u.get("output_tokens_details") or {}).get("thinking_tokens") or 0
+    usage = {"input_tokens": inp, "output_tokens": out_tokens, "thinking_tokens": thinking, "total_tokens": inp + out_tokens}
+    return {"content": (data.get("result") or "").strip(), "usage": usage}
+
+
+def _parse_agy_json(out: str) -> Dict[str, Any]:
+    """`agy --output-format json`: answer plus real token usage."""
+    data = json.loads(out, strict=False)
+    result = data.get("result", data)
+    if result.get("status") != "SUCCESS":
+        raise RuntimeError(str(result.get("error") or result.get("status"))[:300])
+    u = result.get("usage") or {}
+    usage = {
+        "input_tokens": u.get("input_tokens") or 0,
+        "output_tokens": u.get("output_tokens") or 0,
+        "thinking_tokens": u.get("thinking_tokens") or 0,
+        "total_tokens": u.get("total_tokens") or 0,
+    }
+    return {"content": (result.get("response") or "").strip(), "usage": usage}
+
+
+async def _run_cli(
+    args: List[str], stdin: Optional[str], timeout: float, label: str, parse=None
+) -> Optional[Dict[str, Any]]:
     workdir = project_dir.get() or tempfile.gettempdir()
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -63,11 +95,12 @@ async def _run_cli(args: List[str], stdin: Optional[str], timeout: float, label:
             raise RuntimeError(f"timed out after {timeout}s")
         if proc.returncode != 0:
             raise RuntimeError(err.decode(errors="ignore")[-500:] or f"exit code {proc.returncode}")
-        content = out.decode(errors="ignore").strip()
-        if not content:
+        raw = out.decode(errors="ignore").strip()
+        parsed = parse(raw) if (parse and raw) else {"content": raw}
+        if not parsed.get("content"):
             # An empty answer is a failure (e.g. a denied tool), not a blank response
             raise RuntimeError("empty output: " + (err.decode(errors="ignore").strip()[-300:] or "no details"))
-        return {"content": content, "reasoning_details": None}
+        return {"reasoning_details": None, **parsed}
     except Exception as e:
         print(f"Error querying {label}: {e}")
         return None
@@ -87,12 +120,12 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
         return await openrouter_query(model, messages, timeout)
 
     if provider == "claude":
-        args = [resolve_bin("claude"), "-p", "--output-format", "text", "--disallowedTools", CLAUDE_BLOCKED_TOOLS]
+        args = [resolve_bin("claude"), "-p", "--output-format", "json", "--disallowedTools", CLAUDE_BLOCKED_TOOLS]
         if model:
             args += ["--model", model]
         for d in _readable_dirs():
             args += ["--add-dir", d]
-        return await _run_cli(args, _cli_prompt(messages), timeout, f"claude:{model}")
+        return await _run_cli(args, _cli_prompt(messages), timeout, f"claude:{model}", parse=_parse_claude_json)
 
     if provider == "antigravity":
         # agy only takes the prompt as an argument; long prompts (Stage 2/3) go through a file
@@ -109,13 +142,14 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
                 f"Read the file {prompt_file} in full. It contains your complete task. "
                 "Follow its instructions exactly and reply with only the answer it asks for."
             )
-        args = [resolve_bin("agy"), f"-p={prompt}", "--mode", "plan", "--print-timeout", f"{int(timeout)}s"]
+        args = [resolve_bin("agy"), f"-p={prompt}", "--mode", "plan", "--print-timeout", f"{int(timeout)}s",
+                "--output-format", "json"]
         if model:
             args += ["--model", model]
         for d in dirs:
             args += ["--add-dir", d]
         try:
-            return await _run_cli(args, None, timeout + 30, f"antigravity:{model}")
+            return await _run_cli(args, None, timeout + 30, f"antigravity:{model}", parse=_parse_agy_json)
         finally:
             if prompt_file:
                 os.remove(prompt_file)

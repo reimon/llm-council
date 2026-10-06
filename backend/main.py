@@ -545,10 +545,28 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
                     "started_at": int(session.started_at * 1000),
                     "completed_at": int(time.time() * 1000),
                     "models": {
-                        ev["model"]: {"duration": ev.get("duration"), "tokens": ev.get("tokens")}
+                        ev["model"]: {
+                            "duration": ev.get("duration"),
+                            "tokens": ev.get("tokens"),
+                            "tokensReal": ev.get("tokens_real", False),
+                            "usage": ev.get("usage"),
+                        }
                         for ev in session.events
                         if ev.get("type") == "model_complete" and ev.get("stage") == 1
                     },
+                    "chairman": next(
+                        (
+                            {
+                                "duration": ev.get("duration"),
+                                "tokens": ev.get("tokens"),
+                                "tokensReal": ev.get("tokens_real", False),
+                                "usage": ev.get("usage"),
+                            }
+                            for ev in session.events
+                            if ev.get("type") == "model_complete" and ev.get("stage") == 3
+                        ),
+                        None,
+                    ),
                 },
             }
         )

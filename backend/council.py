@@ -46,6 +46,9 @@ async def query_members_parallel(
                 "provider": member.get("provider", ""),
                 "duration": elapsed,
                 "tokens": tokens,
+                # Real counts come from CLIs that report usage (Claude Code, Antigravity)
+                "tokens_real": bool(resp and resp.get("usage")),
+                "usage": (resp or {}).get("usage"),
                 "success": resp is not None,
             }
             # Ship the text right away so the UI can show each answer as soon as it lands
@@ -263,6 +266,8 @@ Provide a clear, well-reasoned final answer that represents the council's collec
             "provider": chairman.get("provider", ""),
             "duration": elapsed,
             "tokens": chair_tokens,
+            "tokens_real": bool(response and response.get("usage")),
+            "usage": (response or {}).get("usage"),
             "success": response is not None,
         })
 

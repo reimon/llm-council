@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Council3DVisualizer, { calculateLiveTokens, formatTokenCount } from './Council3DVisualizer';
+import Council3DVisualizer, { calculateLiveTokens, formatTokenCount, tokenText, usageTitle } from './Council3DVisualizer';
 import ModelIcon from './ModelIcon';
 import { useLang } from '../i18n';
 import './CouncilDeliberation.css';
@@ -86,6 +86,8 @@ export default function CouncilDeliberation({
       status,
       duration: state.duration,
       tokens: state.tokens,
+      tokensReal: !!state.tokensReal,
+      usage: state.usage || null,
       liveTokens: tokenData.tokens,
       tokenRate: tokenData.rate,
       elapsed: tokenData.elapsed,
@@ -152,7 +154,9 @@ export default function CouncilDeliberation({
           {/* Live Total Tokens Metric */}
           <div className="deliberation-tokens-badge" title="Tokens acumulados em tempo real">
             <span className="tokens-bolt">⚡</span>
-            <span className="tokens-val">~{formatTokenCount(totalTokens)}</span>
+            <span className="tokens-val">
+              {tokenText(totalTokens, memberList.length > 0 && memberList.every((m) => m.tokensReal))}
+            </span>
             <span className="tokens-unit">tokens</span>
           </div>
 
@@ -287,7 +291,9 @@ export default function CouncilDeliberation({
                           {m.duration ? `${m.duration}s` : (t('modelDone') || 'Concluído')}
                         </span>
                         {m.liveTokens > 0 && (
-                          <span className="seat-done-tokens">~{formatTokenCount(m.liveTokens)} tokens</span>
+                          <span className="seat-done-tokens" title={usageTitle(m.usage)}>
+                            {tokenText(m.liveTokens, m.tokensReal)} tokens
+                          </span>
                         )}
                       </div>
                     ) : (
@@ -332,7 +338,9 @@ export default function CouncilDeliberation({
                         {t('modelDone') || 'Concluído'}
                       </span>
                       {chairTokenData.tokens > 0 && (
-                        <span className="seat-done-tokens">~{formatTokenCount(chairTokenData.tokens)} tokens</span>
+                        <span className="seat-done-tokens" title={usageTitle(deliberation?.chairman?.usage)}>
+                          {tokenText(chairTokenData.tokens, deliberation?.chairman?.tokensReal)} tokens
+                        </span>
                       )}
                     </div>
                   ) : (

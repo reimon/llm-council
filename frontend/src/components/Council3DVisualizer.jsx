@@ -51,6 +51,16 @@ export function calculateLiveTokens({
   return { tokens: 0, rate: 0, isLive: false };
 }
 
+// "~" marks a size estimate; CLIs that report usage (Claude Code, Antigravity) give exact counts
+export function tokenText(count, real) {
+  return `${real ? '' : '~'}${formatTokenCount(count)}`;
+}
+
+export function usageTitle(usage) {
+  if (!usage) return 'Estimativa pelo tamanho da resposta';
+  return `Entrada ${formatTokenCount(usage.input_tokens)}, saída ${formatTokenCount(usage.output_tokens)}, pensamento ${formatTokenCount(usage.thinking_tokens)}`;
+}
+
 export function formatTokenCount(count) {
   if (!count && count !== 0) return '0';
   return count.toLocaleString('pt-BR');
@@ -716,7 +726,9 @@ export default function Council3DVisualizer({
                     <span className="c3d-check">✓</span>
                     {tokenData.tokens > 0 && (
                       <>
-                        <span className="c3d-token-count">~{formatTokenCount(tokenData.tokens)}</span>
+                        <span className="c3d-token-count" title={usageTitle(member.usage)}>
+                          {tokenText(tokenData.tokens, member.tokensReal)}
+                        </span>
                         <span className="c3d-token-unit">tks</span>
                       </>
                     )}

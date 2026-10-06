@@ -88,6 +88,8 @@ function applyDeliberationEvent(prevDelib, eventType, event) {
         status: event.success ? 'completed' : 'error',
         duration: event.duration,
         tokens: event.tokens,
+        tokensReal: !!event.tokens_real,
+        usage: event.usage || null,
         stage: event.stage,
       };
       // Show each answer/review as soon as its model finishes (the *_complete events replace these)
@@ -106,6 +108,15 @@ function applyDeliberationEvent(prevDelib, eventType, event) {
             seatOrder
           );
         }
+      }
+      if (event.stage === 3) {
+        next.chairman = {
+          ...(next.chairman || { name: event.model }),
+          duration: event.duration,
+          tokens: event.tokens,
+          tokensReal: !!event.tokens_real,
+          usage: event.usage || null,
+        };
       }
       break;
     }

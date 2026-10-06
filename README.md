@@ -90,7 +90,7 @@ Depois abra http://localhost:5173 no navegador.
 | "This client is no longer supported…" ao logar no Gemini CLI | O Google descontinuou o login pessoal. Use a chave de API ou o Antigravity. |
 | Uma cadeira aparece com erro | Use **Testar conexão** nela. Se falhar, refaça o login daquele programa. |
 | Gemini pelo Antigravity muito lento | É o tempo do próprio Antigravity. Use o Gemini CLI ou crie um conselho "rápido" sem ele. |
-| Tokens mostrados com "~" | São estimativas pelo tamanho da resposta; os programas não informam o uso real. |
+| Tokens mostrados com "~" | São estimativas pelo tamanho da resposta. Claude Code e Antigravity informam o uso real, que aparece sem "~" (passe o mouse para ver entrada, saída e pensamento). O Codex não informa, então fica estimado. |
 | Página não carrega os dados | Confira se o backend está rodando (`./start.sh`) e use http://localhost:5173. |
 
 ## O que muda neste fork

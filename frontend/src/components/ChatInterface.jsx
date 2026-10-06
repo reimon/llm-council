@@ -105,7 +105,7 @@ export default function ChatInterface({
                         startedAt: msg.metadata?.timing?.started_at,
                         completedAt: msg.metadata?.timing?.completed_at,
                         members: msg.stage1.map((s) => ({ name: s.model, role: s.role || 'generalist' })),
-                        chairman: msg.stage3 ? { name: msg.stage3.model } : null,
+                        chairman: msg.stage3 ? { name: msg.stage3.model, ...(msg.metadata?.timing?.chairman || {}) } : null,
                         models: Object.fromEntries(msg.stage1.map((s) => [s.model, {
                           status: 'completed',
                           role: s.role,
