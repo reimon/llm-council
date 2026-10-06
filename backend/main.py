@@ -378,6 +378,7 @@ class DeliberationSession:
         self.error: Optional[str] = None
         self.task: Optional[asyncio.Task] = None
         self.completed_at: Optional[float] = None
+        self.started_at: float = time.time()
 
     async def emit(self, event_dict: Dict[str, Any]):
         # Per-model answers ride on model_complete only until the stage result carries them;
@@ -536,7 +537,20 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
             stage1_results,
             stage2_results,
             stage3_result,
-            {"label_to_model": label_to_model, "aggregate_rankings": aggregate_rankings}
+            {
+                "label_to_model": label_to_model,
+                "aggregate_rankings": aggregate_rankings,
+                # Saved so a finished deliberation still shows its real duration and per-model stats
+                "timing": {
+                    "started_at": int(session.started_at * 1000),
+                    "completed_at": int(time.time() * 1000),
+                    "models": {
+                        ev["model"]: {"duration": ev.get("duration"), "tokens": ev.get("tokens")}
+                        for ev in session.events
+                        if ev.get("type") == "model_complete" and ev.get("stage") == 1
+                    },
+                },
+            }
         )
 
         # Send completion event

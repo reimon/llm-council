@@ -102,9 +102,15 @@ export default function ChatInterface({
                     <CouncilDeliberation
                       deliberation={msg.deliberation || (msg.stage1 ? {
                         activeStage: 'done',
+                        startedAt: msg.metadata?.timing?.started_at,
+                        completedAt: msg.metadata?.timing?.completed_at,
                         members: msg.stage1.map((s) => ({ name: s.model, role: s.role || 'generalist' })),
                         chairman: msg.stage3 ? { name: msg.stage3.model } : null,
-                        models: Object.fromEntries(msg.stage1.map((s) => [s.model, { status: 'completed', role: s.role }])),
+                        models: Object.fromEntries(msg.stage1.map((s) => [s.model, {
+                          status: 'completed',
+                          role: s.role,
+                          ...(msg.metadata?.timing?.models?.[s.model] || {}),
+                        }])),
                       } : null)}
                       loading={msg.loading}
                       isComplete={!msg.loading?.stage1 && !msg.loading?.stage2 && !msg.loading?.stage3 && !!msg.stage3}
