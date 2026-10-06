@@ -105,7 +105,7 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(prompt)
             dirs.append(os.path.dirname(prompt_file))
-            prompt = (
+            prompt = ANTIGRAVITY_PREAMBLE + (
                 f"Read the file {prompt_file} in full. It contains your complete task. "
                 "Follow its instructions exactly and reply with only the answer it asks for."
             )

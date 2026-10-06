@@ -7,6 +7,18 @@ import { api } from './api';
 import { useLang } from './i18n';
 import './App.css';
 
+// Insert or replace a model's partial result, kept in seat order (the order the final
+// stage list uses) so tabs don't shift when the stage result replaces the partials.
+function upsertByModel(list, item, seatOrder) {
+  const rank = (name) => {
+    const i = seatOrder.indexOf(name);
+    return i === -1 ? seatOrder.length : i;
+  };
+  return [...(list || []).filter((r) => r.model !== item.model), item].sort(
+    (a, b) => rank(a.model) - rank(b.model)
+  );
+}
+
 function applyDeliberationEvent(prevDelib, eventType, event) {
   const current = prevDelib || {
     activeStage: 1,
@@ -80,16 +92,19 @@ function applyDeliberationEvent(prevDelib, eventType, event) {
       };
       // Show each answer/review as soon as its model finishes (the *_complete events replace these)
       if (event.success && typeof event.content === 'string') {
+        const seatOrder = (next.members || []).map((m) => m.name);
         if (event.stage === 1) {
-          next.stage1 = [
-            ...(next.stage1 || []).filter((r) => r.model !== event.model),
+          next.stage1 = upsertByModel(
+            next.stage1,
             { model: event.model, role: event.role, response: event.content },
-          ];
+            seatOrder
+          );
         } else if (event.stage === 2) {
-          next.stage2 = [
-            ...(next.stage2 || []).filter((r) => r.model !== event.model),
+          next.stage2 = upsertByModel(
+            next.stage2,
             { model: event.model, ranking: event.content, parsed_ranking: event.parsed_ranking || [] },
-          ];
+            seatOrder
+          );
         }
       }
       break;

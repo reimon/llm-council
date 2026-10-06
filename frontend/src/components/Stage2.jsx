@@ -17,11 +17,14 @@ function deAnonymizeText(text, labelToModel) {
 
 export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
   const { t } = useLang();
-  const [activeTab, setActiveTab] = useState(0);
+  // Track the open tab by model, not position: answers arrive one by one and can shift positions
+  const [activeModel, setActiveModel] = useState(null);
 
   if (!rankings || rankings.length === 0) {
     return null;
   }
+
+  const activeTab = Math.max(0, rankings.findIndex((r) => r.model === activeModel));
 
   return (
     <div className="stage stage2">
@@ -69,7 +72,7 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
           <button
             key={index}
             className={`tab ${activeTab === index ? 'active' : ''}`}
-            onClick={() => setActiveTab(index)}
+            onClick={() => setActiveModel(rankings[index].model)}
           >
             {rank.model.split('/')[1] || rank.model}
           </button>

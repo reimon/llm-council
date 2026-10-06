@@ -6,11 +6,14 @@ import './Stage1.css';
 
 export default function Stage1({ responses }) {
   const { t } = useLang();
-  const [activeTab, setActiveTab] = useState(0);
+  // Track the open tab by model, not position: answers arrive one by one and can shift positions
+  const [activeModel, setActiveModel] = useState(null);
 
   if (!responses || responses.length === 0) {
     return null;
   }
+
+  const activeTab = Math.max(0, responses.findIndex((r) => r.model === activeModel));
 
   return (
     <div className="stage stage1">
@@ -24,7 +27,7 @@ export default function Stage1({ responses }) {
           <button
             key={index}
             className={`tab ${activeTab === index ? 'active' : ''}`}
-            onClick={() => setActiveTab(index)}
+            onClick={() => setActiveModel(responses[index].model)}
           >
             {resp.role && resp.role !== 'generalist' && (
               <span

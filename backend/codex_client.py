@@ -75,6 +75,9 @@ async def query_model(
 
         with open(out_path, encoding="utf-8") as f:
             content = f.read().strip()
+        if not content:
+            # Same rule as the other CLIs: an empty answer is a failure, not a blank response
+            raise RuntimeError("empty output: " + (stderr.decode(errors="ignore").strip()[-300:] or "no details"))
         return {'content': content, 'reasoning_details': None}
 
     except Exception as e:

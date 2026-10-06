@@ -380,6 +380,16 @@ class DeliberationSession:
         self.completed_at: Optional[float] = None
 
     async def emit(self, event_dict: Dict[str, Any]):
+        # Per-model answers ride on model_complete only until the stage result carries them;
+        # after that, keep the replay log lean instead of storing every answer twice.
+        stage_done = {"stage1_complete": 1, "stage2_complete": 2}.get(event_dict.get("type"))
+        if stage_done:
+            self.events = [
+                {k: v for k, v in ev.items() if k not in ("content", "parsed_ranking")}
+                if ev.get("type") == "model_complete" and ev.get("stage") == stage_done
+                else ev
+                for ev in self.events
+            ]
         self.events.append(event_dict)
         dead = []
         for q in list(self.subscribers):
