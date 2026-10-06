@@ -96,7 +96,17 @@ def _antigravity_models() -> List[str]:
         out = subprocess.run([resolve_bin("agy"), "models"], capture_output=True, text=True, timeout=60).stdout
     except Exception:
         return []
-    return [line.split("\t")[0].strip() for line in out.splitlines() if "\t" in line]
+    # `agy models` renders columns separated by spaces (including on Windows),
+    # not tabs. Keep only model-slug rows and ignore headings or status text.
+    models = []
+    for line in out.splitlines():
+        fields = line.strip().split()
+        if len(fields) < 2:
+            continue
+        slug = fields[0]
+        if slug[0].islower() and "-" in slug and all(c.islower() or c.isdigit() or c == "-" for c in slug):
+            models.append(slug)
+    return models
 
 
 def list_providers() -> List[Dict[str, Any]]:
