@@ -38,7 +38,7 @@ async def query_members_parallel(
                 tokens = max(10, int(len(content.split()) * 1.33))
 
         if on_event:
-            await on_event({
+            event = {
                 "type": "model_complete",
                 "stage": stage,
                 "model": member["name"],
@@ -47,7 +47,13 @@ async def query_members_parallel(
                 "duration": elapsed,
                 "tokens": tokens,
                 "success": resp is not None,
-            })
+            }
+            # Ship the text right away so the UI can show each answer as soon as it lands
+            if resp is not None:
+                event["content"] = resp.get("content", "")
+                if stage == 2:
+                    event["parsed_ranking"] = parse_ranking_from_text(event["content"])
+            await on_event(event)
         return (member, resp)
 
     responses = await asyncio.gather(*[_query_one(m) for m in members])
@@ -112,6 +118,9 @@ async def stage2_collect_rankings(
         f"Response {label}": result['model']
         for label, result in zip(labels, stage1_results)
     }
+    if on_event:
+        # Lets the UI show model names in reviews that arrive before the stage ends
+        await on_event({"type": "stage2_labels", "label_to_model": label_to_model})
 
     # Build the ranking prompt
     responses_text = "\n\n".join([

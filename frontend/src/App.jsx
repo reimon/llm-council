@@ -78,6 +78,25 @@ function applyDeliberationEvent(prevDelib, eventType, event) {
         tokens: event.tokens,
         stage: event.stage,
       };
+      // Show each answer/review as soon as its model finishes (the *_complete events replace these)
+      if (event.success && typeof event.content === 'string') {
+        if (event.stage === 1) {
+          next.stage1 = [
+            ...(next.stage1 || []).filter((r) => r.model !== event.model),
+            { model: event.model, role: event.role, response: event.content },
+          ];
+        } else if (event.stage === 2) {
+          next.stage2 = [
+            ...(next.stage2 || []).filter((r) => r.model !== event.model),
+            { model: event.model, ranking: event.content, parsed_ranking: event.parsed_ranking || [] },
+          ];
+        }
+      }
+      break;
+    }
+
+    case 'stage2_labels': {
+      next.metadata = { ...(next.metadata || {}), label_to_model: event.label_to_model };
       break;
     }
 

@@ -15,6 +15,13 @@ extra_dirs: contextvars.ContextVar = contextvars.ContextVar("extra_dirs", defaul
 
 CLAUDE_BLOCKED_TOOLS = "Edit Write MultiEdit NotebookEdit Bash"
 
+# Headless agy auto-denies terminal commands and then prints nothing at all, and its
+# sandbox does not stop writes, so steer Gemini to its read-only file tools instead.
+ANTIGRAVITY_PREAMBLE = (
+    "Do not run any shell or terminal commands. To look at files, use only your "
+    "file viewing, reading and search tools.\n\n"
+)
+
 
 def _cli_prompt(messages: List[Dict[str, str]]) -> str:
     """Codex receives images natively; the other CLIs get the file paths to open themselves."""
@@ -56,7 +63,11 @@ async def _run_cli(args: List[str], stdin: Optional[str], timeout: float, label:
             raise RuntimeError(f"timed out after {timeout}s")
         if proc.returncode != 0:
             raise RuntimeError(err.decode(errors="ignore")[-500:] or f"exit code {proc.returncode}")
-        return {"content": out.decode(errors="ignore").strip(), "reasoning_details": None}
+        content = out.decode(errors="ignore").strip()
+        if not content:
+            # An empty answer is a failure (e.g. a denied tool), not a blank response
+            raise RuntimeError("empty output: " + (err.decode(errors="ignore").strip()[-300:] or "no details"))
+        return {"content": content, "reasoning_details": None}
     except Exception as e:
         print(f"Error querying {label}: {e}")
         return None
@@ -86,7 +97,7 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
     if provider == "antigravity":
         # agy only takes the prompt as an argument; long prompts (Stage 2/3) go through a file
         # so they never hit command-line length limits (32k chars on Windows).
-        prompt = _cli_prompt(messages)
+        prompt = ANTIGRAVITY_PREAMBLE + _cli_prompt(messages)
         prompt_file = None
         dirs = _readable_dirs()
         if len(prompt) > MAX_ARG_CHARS:
