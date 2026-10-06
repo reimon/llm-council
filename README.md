@@ -12,12 +12,42 @@ Fork do [karpathy/llm-council](https://github.com/karpathy/llm-council). A ideia
 
 O LLM Council não usa chave de API. Ele conversa com os programas de IA que você já tem instalados e logados no seu computador. Você precisa de **pelo menos um** deles; quanto mais tiver, mais variado fica o conselho.
 
-Siga os passos **na ordem**. Cada passo termina com um comando de conferência: só avance quando ele funcionar.
+### Instalação automática (recomendado)
+
+Um comando só instala tudo o que falta (Git, Node.js, uv), baixa o projeto, instala as dependências, pergunta quais programas de IA você quer (instalando e abrindo o login de cada um) e já inicia o app.
+
+**Windows:** abra o **Prompt de Comando** (tecla Windows, digite **cmd**, Enter), cole o comando abaixo e aperte Enter:
+
+```bash
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/reimon/llm-council/master/install.ps1 | iex"
+```
+
+**macOS / Linux:** abra o **Terminal** e rode:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/reimon/llm-council/master/install.sh | bash
+```
+
+Durante a instalação:
+- Se o Windows perguntar se permite alterações, clique em **Sim**.
+- Para cada programa de IA, responda **S** (instalar) ou **n** (pular). Você precisa de pelo menos um. O login abre no navegador ou no próprio terminal.
+- O projeto fica em `C:\Users\SEU-USUARIO\llm-council` (Windows) ou `~/llm-council` (macOS/Linux).
+- Pode rodar o mesmo comando de novo a qualquer hora: ele só instala o que falta e atualiza o projeto.
+
+Quando aparecer **"LLM Council is running!"**, abra **http://localhost:5173**. Deixe o terminal aberto enquanto usa o app; para parar, aperte **Ctrl+C**.
+
+**Para abrir de novo outro dia** (sem reinstalar), na pasta do projeto:
+- Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1`
+- macOS / Linux: `./start.sh`
+
+### Instalação manual
+
+Se preferir instalar cada coisa à mão, siga os passos **na ordem**. Cada passo termina com um comando de conferência: só avance quando ele funcionar.
 
 > **Regra de ouro:** depois de instalar qualquer programa (Git, Node.js, uv), **feche o terminal e abra de novo**. Sem isso, o terminal não enxerga o programa novo e aparece "is not recognized" (Windows) ou "command not found" (macOS/Linux).
 
-<details open>
-<summary><strong>Windows (passo a passo completo)</strong></summary>
+<details>
+<summary><strong>Windows: instalação manual</strong></summary>
 
 #### Passo 0. Abrir o Prompt de Comando
 
@@ -199,8 +229,8 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 
 </details>
 
-<details open>
-<summary><strong>macOS e Linux</strong></summary>
+<details>
+<summary><strong>macOS e Linux: instalação manual</strong></summary>
 
 Use o **Terminal**.
 
