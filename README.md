@@ -24,13 +24,15 @@ O LLM Council não usa chave de API. Ele conversa com os programas de IA que voc
 |---|---|---|---|
 | **Codex CLI** | GPT (OpenAI) | `npm install -g @openai/codex` | `codex login` (conta ChatGPT) |
 | **Claude Code** | Claude (Anthropic) | `npm install -g @anthropic-ai/claude-code` | rode `claude` e siga o login |
-| **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | rode `gemini` e entre com a conta Google |
+| **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | chave gratuita (veja abaixo) |
 | **Antigravity** | Gemini, Claude e outros | instale o app Antigravity (traz o comando `agy`) | faça login no app |
 
 Dicas:
 - O login de cada um é feito **por você**, uma vez, no terminal ou no app. O LLM Council só usa o login que já existe.
 - O uso conta no limite do seu plano em cada serviço (ChatGPT, Claude, Google).
-- Para Gemini, prefira o **Gemini CLI**: o Antigravity funciona, mas é um agente completo e leva de 40 a 60 segundos por resposta, mesmo para perguntas curtas.
+- **Gemini:** há dois caminhos.
+  - **Antigravity:** funciona com o login normal da sua conta Google, mas é um agente completo e leva de 40 a 60 segundos por resposta, mesmo para perguntas curtas.
+  - **Gemini CLI:** mais rápido, mas o Google **não aceita mais login com conta pessoal** nele (aparece "This client is no longer supported for Gemini Code Assist for individuals"). Ele só funciona com uma **chave de API gratuita**: crie em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e salve no arquivo `~/.gemini/.env` assim: `GEMINI_API_KEY=sua-chave`. Depois rode `gemini` uma vez e escolha **2. Use Gemini API Key**, para ele deixar de tentar o login com Google. A chave gratuita tem limite de uso.
 - Todos rodam em modo **somente leitura**: podem ler as pastas que você indicar, mas não alteram nada.
 
 ### 3. Baixe e inicie o app
@@ -68,7 +70,7 @@ Depois abra http://localhost:5173 no navegador.
 ### 4. Monte o seu conselho
 
 1. Clique em **Configurar conselho**. Você vê a mesa com o presidente (coroa) e os conselheiros.
-2. Clique numa cadeira. Em **Onde roda**, escolha o programa; o app mostra só os instalados e avisa **"Precisa de login"** quando falta entrar.
+2. Clique numa cadeira. Em **Onde roda**, escolha o programa; o app mostra só os instalados e avisa **"Precisa de chave"** quando falta a chave do Gemini CLI.
 3. Escolha o **modelo** e clique em **Testar conexão**. Se aparecer "Respondeu em Xs", está tudo certo.
 4. Escolha o **papel** (Contrário, Executor…) e, se quiser, adicione **skills** pela **Biblioteca de skills**.
 5. Clique em **Salvar conselho**. Você pode criar vários conselhos (ex.: "Produto", "Código", "Rápido") com **+ Novo conselho**.
@@ -84,7 +86,8 @@ Depois abra http://localhost:5173 no navegador.
 | Sintoma | O que fazer |
 |---|---|
 | Programa aparece como "Não instalado" | Instale-o (passo 2) e reabra a câmara do conselho. |
-| "Precisa de login" no Gemini CLI | Rode `gemini` no terminal e entre com a conta Google. |
+| "Precisa de chave" no Gemini CLI | Crie a chave gratuita e salve em `~/.gemini/.env` (passo 2). Login com conta Google não funciona mais. |
+| "This client is no longer supported…" ao logar no Gemini CLI | O Google descontinuou o login pessoal. Use a chave de API ou o Antigravity. |
 | Uma cadeira aparece com erro | Use **Testar conexão** nela. Se falhar, refaça o login daquele programa. |
 | Gemini pelo Antigravity muito lento | É o tempo do próprio Antigravity. Use o Gemini CLI ou crie um conselho "rápido" sem ele. |
 | Tokens mostrados com "~" | São estimativas pelo tamanho da resposta; os programas não informam o uso real. |
@@ -139,7 +142,7 @@ Em **Configurar conselho**, o conselho aparece como uma mesa redonda: o presiden
 
 Também dá para adicionar cadeiras, tirar alguém de uma sessão sem apagar a cadeira, tornar um conselheiro presidente e misturar provedores: por exemplo, GPT pelo Codex, Claude Sonnet pelo Claude Code e Gemini 3.1 Pro pelo Antigravity, com o Claude Opus presidindo. A configuração fica em `data/council.json`. Na etapa 1, cada aba mostra em que papel o modelo respondeu.
 
-Requisitos: o `claude` (Claude Code), o `agy` (Antigravity) e o `gemini` (Gemini CLI) precisam estar instalados e logados. O Gemini CLI é bem mais rápido que o Antigravity para usar Gemini; para logar, rode `gemini` uma vez no terminal. Ele roda no modo `plan`, que é somente leitura. Nenhum deles tem permissão de editar arquivos. O passo a passo de instalação e login está em [Começando](#começando-passo-a-passo).
+Requisitos: o `claude` (Claude Code), o `agy` (Antigravity) e o `gemini` (Gemini CLI) precisam estar instalados e logados. O Gemini CLI é bem mais rápido que o Antigravity para usar Gemini, mas precisa de uma chave de API gratuita do Google AI Studio. Ele roda no modo `plan`, que é somente leitura. Nenhum deles tem permissão de editar arquivos. O passo a passo de instalação e login está em [Começando](#começando-passo-a-passo).
 
 ### Vários conselhos salvos
 

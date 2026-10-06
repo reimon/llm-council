@@ -124,7 +124,7 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
         from .council_config import gemini_cli_logged_in
         if not gemini_cli_logged_in():
             # Without a login the CLI opens a browser auth page and waits; fail fast instead
-            print("Error querying gemini: not logged in (run `gemini` once in a terminal to sign in)")
+            print("Error querying gemini: no API key (put GEMINI_API_KEY in ~/.gemini/.env)")
             return None
         # Gemini CLI: prompt on stdin, "plan" approval mode is its read-only mode (enforced by the CLI)
         args = [resolve_bin("gemini"), "-p", "Answer the request above.", "--approval-mode", "plan",

@@ -64,10 +64,18 @@ GEMINI_CLI_MODELS = ["default"]
 
 
 def gemini_cli_logged_in() -> bool:
-    """The Gemini CLI needs a one-time Google login (or an API key) before headless use."""
+    """
+    The Gemini CLI now needs a Gemini API key (free at aistudio.google.com/apikey).
+    Google sign-in for individuals was discontinued, so an oauth_creds.json file alone
+    does not mean it works. The CLI reads the key from the environment or ~/.gemini/.env.
+    """
     if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
         return True
-    return os.path.exists(os.path.expanduser("~/.gemini/oauth_creds.json"))
+    env_file = os.path.expanduser("~/.gemini/.env")
+    if os.path.exists(env_file):
+        with open(env_file, encoding="utf-8") as f:
+            return any(line.strip().startswith(("GEMINI_API_KEY=", "GOOGLE_API_KEY=")) for line in f)
+    return False
 
 CLAUDE_MODELS = ["fable", "opus", "sonnet", "haiku"]
 
