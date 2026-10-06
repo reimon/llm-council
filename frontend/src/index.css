@@ -813,3 +813,5 @@ button, textarea { font: inherit; color: inherit; }
   .council-switcher { padding: 4px 16px 0; }
   .council-name-input { font-size: 26px; }
 }
+
+.translating { color: var(--council); font-weight: 600; }

@@ -171,6 +171,12 @@ export const api = {
     return response.json();
   },
 
+  async translateSkills() {
+    const response = await fetch(`${API_BASE}/api/skills/translate`, { method: 'POST' });
+    if (!response.ok) return { pending: 0, running: false };
+    return response.json();
+  },
+
   async getInstalledSkills() {
     const response = await fetch(`${API_BASE}/api/skills`);
     if (!response.ok) throw new Error('Failed to load skills');

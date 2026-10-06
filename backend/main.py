@@ -19,6 +19,7 @@ from .codex_client import project_dir, attached_images
 from . import attachments as attachments_mod
 from . import council_config
 from . import skills as skills_mod
+from . import skill_translations
 from .providers import extra_dirs, query_member
 import time
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
@@ -210,13 +211,24 @@ async def put_council(council: Dict[str, Any]):
 @app.get("/api/skills/catalog")
 async def skills_catalog():
     """Skills available from trusted sources (built-in library and local SKILL.md files)."""
-    return await asyncio.to_thread(skills_mod.catalog)
+    items = await asyncio.to_thread(skills_mod.catalog)
+    return skill_translations.apply(items)
+
+
+@app.post("/api/skills/translate")
+async def translate_skills():
+    """Start translating local skill descriptions to Portuguese in the background."""
+    items = await asyncio.to_thread(skills_mod.catalog)
+    todo = len(skill_translations.pending(items))
+    if todo and not skill_translations.is_running():
+        asyncio.create_task(skill_translations.translate_missing(items))
+    return {"pending": todo, "running": todo > 0}
 
 
 @app.get("/api/skills")
 async def installed_skills():
     """Skills installed in the council library."""
-    return skills_mod.list_installed()
+    return skill_translations.apply(skills_mod.list_installed())
 
 
 @app.post("/api/skills/{skill_id}")

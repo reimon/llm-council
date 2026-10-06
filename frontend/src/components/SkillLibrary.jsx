@@ -15,9 +15,38 @@ export default function SkillLibrary({ installed, onChanged, onClose, seatName, 
 
   const installedIds = useMemo(() => new Set(installed.map((s) => s.id)), [installed]);
 
+  const [translating, setTranslating] = useState(false);
+
   useEffect(() => {
     api.getSkillCatalog().then(setCatalog).catch(() => setCatalog([]));
   }, []);
+
+  // Local SKILL.md descriptions are usually English: translate them once, then refresh as batches land
+  useEffect(() => {
+    if (lang !== 'pt') return undefined;
+    let stopped = false;
+    let timer;
+    const poll = async () => {
+      const state = await api.translateSkills();
+      if (stopped) return;
+      setTranslating(state.running);
+      if (state.running) {
+        timer = setTimeout(async () => {
+          const fresh = await api.getSkillCatalog().catch(() => null);
+          if (!stopped && fresh) setCatalog(fresh);
+          poll();
+        }, 5000);
+      } else {
+        const fresh = await api.getSkillCatalog().catch(() => null);
+        if (!stopped && fresh) setCatalog(fresh);
+      }
+    };
+    poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [lang]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -92,7 +121,10 @@ export default function SkillLibrary({ installed, onChanged, onClose, seatName, 
             autoFocus
           />
         </div>
-        <p className="library-source-note">{t(`skillSourceNote_${source}`)}</p>
+        <p className="library-source-note">
+          {t(`skillSourceNote_${source}`)}
+          {translating && source === 'local' && <span className="translating"> {t('translatingSkills')}</span>}
+        </p>
 
         <div className="skill-grid">
           {catalog === null && <p className="drawer-muted">{t('loadingSkills')}</p>}
