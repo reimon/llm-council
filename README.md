@@ -378,6 +378,7 @@ Para ajustar à mão:
 | Sintoma | O que fazer |
 |---|---|
 | Programa aparece como "Não instalado" | Confira num terminal **novo** se ele responde (ex.: `codex --version`). Se não responder, instale e faça login. Se responder, pare o app (Ctrl+C) e inicie de novo nesse terminal novo. |
+| Antigravity aparece como "Não instalado" | O painel precisa da CLI `agy`, não só do Antigravity IDE. No Prompt de Comando do Windows, rode `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://antigravity.google/cli/install.ps1 \| iex"`. Reabra o Prompt, rode `agy` e conclua o login Google. Depois reinicie o LLM Council e clique em **Configurar automaticamente**. |
 | "Precisa de chave" no Gemini CLI | Crie a chave gratuita e salve em `~/.gemini/.env` (passo 2). Login com conta Google não funciona mais. |
 | "This client is no longer supported…" ao logar no Gemini CLI | O Google descontinuou o login pessoal. Use a chave de API ou o Antigravity. |
 | Uma cadeira aparece com erro | Use **Testar conexão** nela. Se falhar, refaça o login daquele programa. |
