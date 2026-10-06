@@ -19,6 +19,25 @@ COUNCIL_MODELS = [
 # Chairman model - synthesizes final response
 CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
+# Model used for short helper tasks (e.g. conversation titles)
+TITLE_MODEL = "google/gemini-2.5-flash"
+
+# Provider: "codex" uses the locally installed Codex CLI (your ChatGPT login, no API key);
+# "openrouter" uses OPENROUTER_API_KEY.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "codex")
+CODEX_BIN = os.getenv("CODEX_BIN", "codex")
+
+if LLM_PROVIDER == "codex":
+    # Codex only serves OpenAI models available to your ChatGPT plan
+    COUNCIL_MODELS = [
+        "gpt-6.1-sol",
+        "gpt-6-astra",
+        "gpt-5.6-terra",
+        "gpt-5.5",
+    ]
+    CHAIRMAN_MODEL = "gpt-6.1-sol"
+    TITLE_MODEL = "gpt-6-luna"
+
 # OpenRouter API endpoint
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 

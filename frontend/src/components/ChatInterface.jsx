@@ -41,8 +41,9 @@ export default function ChatInterface({
     return (
       <div className="chat-interface">
         <div className="empty-state">
-          <h2>Welcome to LLM Council</h2>
-          <p>Create a new conversation to get started</p>
+          <h2>Leve uma pergunta ao conselho</h2>
+          <p>Vários modelos respondem, avaliam uns aos outros de forma anônima e um presidente redige a resposta final.</p>
+          <p className="empty-hint">Comece em “Nova pergunta”, à esquerda.</p>
         </div>
       </div>
     );
@@ -53,15 +54,15 @@ export default function ChatInterface({
       <div className="messages-container">
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
-            <h2>Start a conversation</h2>
-            <p>Ask a question to consult the LLM Council</p>
+            <h2>Sobre o que o conselho deve opinar?</h2>
+            <p>Faça uma pergunta. A deliberação completa leva um ou dois minutos.</p>
           </div>
         ) : (
           conversation.messages.map((msg, index) => (
             <div key={index} className="message-group">
               {msg.role === 'user' ? (
                 <div className="user-message">
-                  <div className="message-label">You</div>
+                  <div className="message-label">Sua pergunta</div>
                   <div className="message-content">
                     <div className="markdown-content">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -70,13 +71,12 @@ export default function ChatInterface({
                 </div>
               ) : (
                 <div className="assistant-message">
-                  <div className="message-label">LLM Council</div>
-
+                  
                   {/* Stage 1 */}
                   {msg.loading?.stage1 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 1: Collecting individual responses...</span>
+                      <span>Os modelos estão escrevendo suas respostas…</span>
                     </div>
                   )}
                   {msg.stage1 && <Stage1 responses={msg.stage1} />}
@@ -85,7 +85,7 @@ export default function ChatInterface({
                   {msg.loading?.stage2 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 2: Peer rankings...</span>
+                      <span>Os modelos estão avaliando uns aos outros…</span>
                     </div>
                   )}
                   {msg.stage2 && (
@@ -100,7 +100,7 @@ export default function ChatInterface({
                   {msg.loading?.stage3 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Running Stage 3: Final synthesis...</span>
+                      <span>O presidente está redigindo a resposta final…</span>
                     </div>
                   )}
                   {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
@@ -113,7 +113,7 @@ export default function ChatInterface({
         {isLoading && (
           <div className="loading-indicator">
             <div className="spinner"></div>
-            <span>Consulting the council...</span>
+            <span>Reunindo o conselho…</span>
           </div>
         )}
 
@@ -124,7 +124,7 @@ export default function ChatInterface({
         <form className="input-form" onSubmit={handleSubmit}>
           <textarea
             className="message-input"
-            placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+            placeholder="Escreva sua pergunta. Enter envia, Shift+Enter quebra a linha."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -136,7 +136,7 @@ export default function ChatInterface({
             className="send-button"
             disabled={!input.trim() || isLoading}
           >
-            Send
+            Perguntar ao conselho
           </button>
         </form>
       )}

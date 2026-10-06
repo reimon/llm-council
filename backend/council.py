@@ -1,8 +1,12 @@
 """3-stage LLM Council orchestration."""
 
 from typing import List, Dict, Any, Tuple
-from .openrouter import query_models_parallel, query_model
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
+from .config import LLM_PROVIDER
+if LLM_PROVIDER == "codex":
+    from .codex_client import query_models_parallel, query_model
+else:
+    from .openrouter import query_models_parallel, query_model
+from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL
 
 
 async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
@@ -275,13 +279,13 @@ Title:"""
     messages = [{"role": "user", "content": title_prompt}]
 
     # Use gemini-2.5-flash for title generation (fast and cheap)
-    response = await query_model("google/gemini-2.5-flash", messages, timeout=30.0)
+    response = await query_model(TITLE_MODEL, messages, timeout=120.0)
 
     if response is None:
         # Fallback to a generic title
-        return "New Conversation"
+        return "Nova conversa"
 
-    title = response.get('content', 'New Conversation').strip()
+    title = response.get('content', 'Nova conversa').strip()
 
     # Clean up the title - remove quotes, limit length
     title = title.strip('"\'')

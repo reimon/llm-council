@@ -11,7 +11,10 @@ export default function Stage1({ responses }) {
 
   return (
     <div className="stage stage1">
-      <h3 className="stage-title">Stage 1: Individual Responses</h3>
+      <header className="stage-head">
+        <span className="stage-num">1</span>
+        <h3 className="stage-title">Cada modelo responde sozinho</h3>
+      </header>
 
       <div className="tabs">
         {responses.map((resp, index) => (

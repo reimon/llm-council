@@ -33,7 +33,7 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
     conversation = {
         "id": conversation_id,
         "created_at": datetime.utcnow().isoformat(),
-        "title": "New Conversation",
+        "title": "Nova conversa",
         "messages": []
     }
 
@@ -97,7 +97,7 @@ def list_conversations() -> List[Dict[str, Any]]:
                 conversations.append({
                     "id": data["id"],
                     "created_at": data["created_at"],
-                    "title": data.get("title", "New Conversation"),
+                    "title": data.get("title", "Nova conversa"),
                     "message_count": len(data["messages"])
                 })
 
