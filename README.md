@@ -18,6 +18,13 @@ O LLM Council não usa chave de API. Ele conversa com os programas de IA que voc
 - [Node.js](https://nodejs.org/) 18 ou mais novo
 - Opcional: [ffmpeg](https://ffmpeg.org/download.html), só para anexar vídeos
 
+Para instalar o uv:
+
+- **macOS / Linux:** `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Windows** (Prompt de Comando ou PowerShell): `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+
+Depois de instalar o uv ou o Node.js, **feche e abra o terminal de novo**, senão aparece "uv is not recognized" (Windows) ou "command not found" (macOS/Linux).
+
 ### 2. Instale e faça login nos programas de IA
 
 | Programa | Modelos | Instalar | Fazer login |
@@ -66,6 +73,8 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
 Depois abra http://localhost:5173 no navegador.
+
+No Windows, use o Prompt de Comando ou o PowerShell. Comandos do macOS/Linux como `ls` não existem lá (o equivalente é `dir`), e `npm install -g` pode pedir um terminal aberto como administrador.
 
 ### 4. Monte o seu conselho
 
