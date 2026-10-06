@@ -139,10 +139,24 @@ def _parse_skill_md(path: str) -> Optional[Dict[str, Any]]:
     body = text
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", text, re.S)
     if m:
-        for line in m.group(1).splitlines():
-            if ":" in line and not line.startswith((" ", "\t")):
-                k, v = line.split(":", 1)
-                meta[k.strip()] = v.strip().strip('"').strip("'")
+        lines = m.group(1).splitlines()
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            i += 1
+            if ":" not in line or line.startswith((" ", "\t")):
+                continue
+            k, v = line.split(":", 1)
+            v = v.strip()
+            # YAML block scalars (">", ">-", "|", "|-") continue on the indented lines below
+            if v in (">", ">-", ">+", "|", "|-", "|+", ""):
+                block = []
+                while i < len(lines) and (lines[i].startswith((" ", "\t")) or not lines[i].strip()):
+                    block.append(lines[i].strip())
+                    i += 1
+                sep = "\n" if v.startswith("|") else " "
+                v = sep.join(x for x in block if x).strip()
+            meta[k.strip()] = v.strip('"').strip("'")
         body = m.group(2)
     name = meta.get("name") or os.path.basename(os.path.dirname(path))
     return {"name": name, "description": meta.get("description", ""), "body": body.strip()}
