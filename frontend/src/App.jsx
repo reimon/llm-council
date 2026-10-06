@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import ConfirmDialog from './components/ConfirmDialog';
 import { api } from './api';
 import './App.css';
 
@@ -10,6 +11,8 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  // In-app confirmation; native window.confirm is blocked in some embedded browsers
+  const [pendingConfirm, setPendingConfirm] = useState(null);
 
   // Load conversations on mount
   useEffect(() => {
@@ -75,7 +78,15 @@ function App() {
   const handleDeleteConversation = async (id) => {
     const conv = conversations.find((c) => c.id === id);
     const title = conv?.title || 'esta conversa';
-    if (!window.confirm(`Apagar "${title}"? Isso não pode ser desfeito.`)) return;
+    setPendingConfirm({
+      title: 'Apagar conversa?',
+      message: `"${title}" será apagada. Isso não pode ser desfeito.`,
+      confirmLabel: 'Apagar conversa',
+      onConfirm: () => deleteConversation(id),
+    });
+  };
+
+  const deleteConversation = async (id) => {
     try {
       await api.deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -98,10 +109,17 @@ function App() {
   const handleDeleteProject = async (id) => {
     const project = projects.find((p) => p.id === id);
     const count = conversations.filter((c) => c.project_id === id).length;
-    const msg =
-      `Remover o projeto "${project?.name}" e ${count === 1 ? 'seu chat' : `seus ${count} chats`}? ` +
-      'A pasta do projeto no disco não é tocada.';
-    if (!window.confirm(msg)) return;
+    setPendingConfirm({
+      title: 'Remover projeto?',
+      message:
+        `"${project?.name}" e ${count === 1 ? 'seu chat serão removidos' : `seus ${count} chats serão removidos`}. ` +
+        'A pasta do projeto no disco não é alterada.',
+      confirmLabel: 'Remover projeto',
+      onConfirm: () => deleteProject(id),
+    });
+  };
+
+  const deleteProject = async (id) => {
     try {
       await api.deleteProject(id);
       setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -256,6 +274,16 @@ function App() {
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
       />
+      {pendingConfirm && (
+        <ConfirmDialog
+          {...pendingConfirm}
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={() => {
+            pendingConfirm.onConfirm();
+            setPendingConfirm(null);
+          }}
+        />
+      )}
     </div>
   );
 }
