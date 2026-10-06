@@ -216,21 +216,25 @@ claude
 
 Siga o login que aparece na tela (conta Claude). Depois feche com **Ctrl+C** duas vezes.
 
-**Antigravity CLI (Gemini)**, opcional: o LLM Council precisa da CLI `agy`; instalar apenas o Antigravity IDE não basta. No Prompt de Comando do Windows, rode o instalador oficial:
+**Antigravity CLI (Gemini)**, opcional: o LLM Council precisa da CLI `agy`; instalar apenas o Antigravity IDE não basta. Na pasta `llm-council`, rode este script no Prompt de Comando do Windows:
 
 ```bash
-curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd
+install-agy.cmd
 ```
 
 Se aparecer a mensagem **"binary is not in your active PATH"**, a instalação foi concluída, mas o Prompt atual ainda não atualizou o caminho. Feche todas as janelas do Prompt, abra uma nova e confira com `where agy`.
 
-Confira também se a CLI responde:
+Depois, confira se a CLI responde e faça o login Google na primeira execução:
 
 ```bash
 agy --version
 ```
 
-Na primeira execução de `agy`, faça login com sua conta Google. O aplicativo Antigravity IDE pode ser instalado separadamente pela [página oficial](https://www.antigravity.google/download).
+```bash
+agy
+```
+
+O aplicativo Antigravity IDE pode ser instalado separadamente pela [página oficial](https://www.antigravity.google/download).
 
 Se algum `npm install -g` der erro de permissão (`EPERM` ou `EACCES`), abra o Prompt **como administrador** (tecla Windows, digite **cmd**, clique com o botão direito em Prompt de Comando, **Executar como administrador**) e repita o comando.
 
@@ -353,7 +357,7 @@ cd frontend && npm install && cd ..
 |---|---|---|---|
 | **Codex CLI** | GPT (OpenAI) | `npm install -g @openai/codex` | `codex login` (conta ChatGPT) |
 | **Claude Code** | Claude (Anthropic) | `npm install -g @anthropic-ai/claude-code` | rode `claude` e siga o login |
-| **Antigravity CLI** | Gemini, Claude e outros | Windows: `curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd` · macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh \| bash` | rode `agy` e entre com a conta Google |
+| **Antigravity CLI** | Gemini, Claude e outros | Windows: `install-agy.cmd` na pasta do projeto · macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh \| bash` | rode `agy` e entre com a conta Google |
 | **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | chave gratuita (veja abaixo) |
 
 - O login de cada um é feito **por você**, uma vez, no terminal ou no app. O LLM Council só usa o login que já existe.
@@ -394,7 +398,7 @@ Para ajustar à mão:
 | Sintoma | O que fazer |
 |---|---|
 | Programa aparece como "Não instalado" | Confira num terminal **novo** se ele responde (ex.: `codex --version`). Se não responder, instale e faça login. Se responder, pare o app (Ctrl+C) e inicie de novo nesse terminal novo. |
-| Antigravity aparece como "Não instalado" | O painel precisa da CLI `agy`, não só do Antigravity IDE. No Prompt de Comando do Windows, rode `curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd`. Reabra o Prompt, rode `agy` e conclua o login Google. Depois reinicie o LLM Council e clique em **Configurar automaticamente**. |
+| Antigravity aparece como "Não instalado" | O painel precisa da CLI `agy`, não só do Antigravity IDE. Na pasta `llm-council`, rode `install-agy.cmd`, conclua o login Google e reinicie o LLM Council. Depois clique em **Configurar automaticamente**. |
 | "Precisa de chave" no Gemini CLI | Crie a chave gratuita e salve em `~/.gemini/.env` (passo 2). Login com conta Google não funciona mais. |
 | "This client is no longer supported…" ao logar no Gemini CLI | O Google descontinuou o login pessoal. Use a chave de API ou o Antigravity. |
 | Uma cadeira aparece com erro | Use **Testar conexão** nela. Se falhar, refaça o login daquele programa. |

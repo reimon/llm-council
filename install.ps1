@@ -115,13 +115,15 @@ foreach ($app in $apps) {
         }
     }
 }
+$agyBin = Join-Path $env:LOCALAPPDATA "agy\bin"
+if (Test-Path $agyBin) { $env:Path = "$agyBin;$env:Path" }
 if (Has "agy") {
     Say "Antigravity CLI (Gemini, usa a conta Google): ja instalado"
 } elseif (Ask "Instalar Antigravity CLI (Gemini, usa a conta Google)?") {
-    # Official installer; the command is "agy" (the Antigravity editor app does not include it)
-    powershell -ExecutionPolicy ByPass -c "irm https://antigravity.google/cli/install.ps1 | iex"
+    # The helper runs the official installer and verifies agy.exe even when PATH is stale.
+    & (Join-Path $Root "install-agy.cmd")
     Refresh-Path
-    $env:Path = "$env:Path;$env:LOCALAPPDATA\Antigravity;$env:LOCALAPPDATA\agy\bin"
+    $env:Path = "$agyBin;$env:LOCALAPPDATA\Antigravity;$env:Path"
     if (Has "agy") {
         Say "Agora faca o login com a conta Google (abre o navegador). Ao terminar, saia com Ctrl+C." "Yellow"
         agy
