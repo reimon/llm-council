@@ -42,13 +42,15 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 ![Tela do app com uma pergunta respondida pelo conselho](docs/screenshot.png)
 
+![Resposta final do presidente](docs/screenshot-resposta.png)
+
 A interface foi redesenhada com o tema de uma sessão de conselho:
 
 - Barra lateral azul-marinho, com um logo de cinco assentos em semicírculo.
 - A pergunta aparece em destaque, em serifa (Newsreader). A interface usa Instrument Sans.
 - As três etapas viram uma linha do tempo numerada.
 - As abas dos modelos viraram um seletor segmentado.
-- A classificação geral aparece como barras e vem antes das avaliações individuais.
+- A classificação geral aparece como barras e vem antes das avaliações individuais. Ela fica salva no histórico, então aparece também ao reabrir conversas antigas.
 - A resposta final do presidente fica num cartão dourado, o único destaque forte da página.
 - Foco visível pelo teclado, respeito a quem prefere menos animação e layout em uma coluna em telas estreitas.
 - Os estilos estão concentrados em `frontend/src/index.css`, com tokens de cor no `:root`.
