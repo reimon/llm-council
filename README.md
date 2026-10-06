@@ -17,61 +17,129 @@ Siga os passos **na ordem**. Cada passo termina com um comando de conferência: 
 > **Regra de ouro:** depois de instalar qualquer programa (Git, Node.js, uv), **feche o terminal e abra de novo**. Sem isso, o terminal não enxerga o programa novo e aparece "is not recognized" (Windows) ou "command not found" (macOS/Linux).
 
 <details open>
-<summary><strong>Windows</strong></summary>
+<summary><strong>Windows (passo a passo completo)</strong></summary>
 
-Use o **Prompt de Comando** (procure "cmd" no menu Iniciar). Comandos de Mac/Linux como `ls` não existem aqui; o equivalente é `dir`.
+#### Passo 0. Abrir o Prompt de Comando
 
-**1. Git.** Baixe e instale em https://git-scm.com/download/win (pode aceitar as opções padrão). Reabra o Prompt e confira:
+1. Aperte a tecla **Windows**, digite **cmd** e clique em **Prompt de Comando**.
+2. Para colar um comando no Prompt: copie aqui no README e clique com o **botão direito** dentro da janela preta (ou aperte **Ctrl+V**). Depois aperte **Enter**.
+3. Rode **um comando por vez** e espere terminar antes do próximo.
+
+> Toda vez que este guia disser **"reabra o Prompt"**: feche a janela do Prompt de Comando e abra uma nova (passo 0). É isso que faz o Windows enxergar um programa recém-instalado.
+
+#### Passo 1. Instalar o Git (baixa o projeto)
+
+```bash
+winget install --id Git.Git -e
+```
+
+Se aparecer uma pergunta sobre aceitar os termos, digite **Y** e aperte Enter. Se o Windows perguntar se permite alterações, clique em **Sim**.
+
+*Sem winget?* Baixe em https://git-scm.com/download/win, abra o arquivo e clique **Next** em todas as telas até **Install**, depois **Finish**.
+
+**Reabra o Prompt** e confira (deve aparecer algo como `git version 2.x`):
 
 ```bash
 git --version
 ```
 
-**2. Node.js.** Baixe a versão **LTS** em https://nodejs.org e instale (opções padrão). Reabra o Prompt e confira (deve aparecer um número de versão):
+#### Passo 2. Instalar o Node.js (traz o npm)
+
+```bash
+winget install --id OpenJS.NodeJS.LTS -e
+```
+
+*Sem winget?* Baixe a versão **LTS** em https://nodejs.org, abra o arquivo `.msi` e clique **Next** em todas as telas (deixe marcadas as opções padrão) até **Install**, depois **Finish**.
+
+**Reabra o Prompt** e confira as duas coisas (cada uma deve mostrar um número de versão):
+
+```bash
+node --version
+```
 
 ```bash
 npm --version
 ```
 
-**3. uv** (gerencia o Python do backend):
+#### Passo 3. Instalar o uv (roda o backend em Python)
+
+```bash
+winget install --id astral-sh.uv -e
+```
+
+*Sem winget?* Use:
 
 ```bash
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-Reabra o Prompt e confira:
+**Reabra o Prompt** e confira:
 
 ```bash
 uv --version
 ```
 
-**4. Baixe o LLM Council** (fica em `C:\Users\SEU-USUARIO\llm-council`):
+Você **não** precisa instalar o Python: o uv baixa a versão certa sozinho no passo 5.
+
+#### Passo 4. Baixar o LLM Council
+
+Vá para a sua pasta de usuário:
 
 ```bash
 cd %USERPROFILE%
 ```
 
+Baixe o projeto (se você já baixou antes, pule este comando):
+
 ```bash
 git clone https://github.com/reimon/llm-council.git
 ```
+
+Entre na pasta:
 
 ```bash
 cd llm-council
 ```
 
-**5. Instale as dependências:**
+Se você já tinha baixado antes, atualize para a versão mais nova:
+
+```bash
+git pull
+```
+
+#### Passo 5. Instalar as dependências do app
+
+Backend (pode demorar alguns minutos na primeira vez):
 
 ```bash
 uv sync
 ```
 
+Frontend:
+
 ```bash
-cd frontend && npm install && cd ..
+cd frontend
 ```
 
-Se o `npm install` der erro de permissão, abra o Prompt **como administrador** (clique com o botão direito em "Prompt de Comando") e repita.
+```bash
+npm install
+```
 
-**6. Instale e faça login em pelo menos um programa de IA** (veja a tabela em [Programas de IA](#programas-de-ia) logo abaixo). Exemplo com o Codex:
+```bash
+cd ..
+```
+
+Confira que existe a pasta `frontend\node_modules`:
+
+```bash
+dir frontend\node_modules
+```
+
+#### Passo 6. Instalar e fazer login em pelo menos um programa de IA
+
+Você precisa de **pelo menos um**. Recomendado para começar: **Codex** (usa sua conta do ChatGPT).
+
+**Codex (GPT):**
 
 ```bash
 npm install -g @openai/codex
@@ -81,13 +149,53 @@ npm install -g @openai/codex
 codex login
 ```
 
-**7. Inicie o app:**
+O navegador abre: entre com a sua conta do ChatGPT. Confira:
+
+```bash
+codex --version
+```
+
+**Claude Code (Claude)**, opcional:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+```bash
+claude
+```
+
+Siga o login que aparece na tela (conta Claude). Depois feche com **Ctrl+C** duas vezes.
+
+**Antigravity (Gemini)**, opcional: instale o app Antigravity, abra e faça login com a sua conta Google. Ele traz o comando `agy`. Confira (reabra o Prompt antes):
+
+```bash
+agy --version
+```
+
+Se algum `npm install -g` der erro de permissão (`EPERM` ou `EACCES`), abra o Prompt **como administrador** (tecla Windows, digite **cmd**, clique com o botão direito em Prompt de Comando, **Executar como administrador**) e repita o comando.
+
+#### Passo 7. Iniciar o app
+
+Dentro da pasta `llm-council`:
 
 ```bash
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-O script confere se uv, npm e as dependências estão instalados e diz o que falta. Quando aparecer "LLM Council is running!", abra **http://localhost:5173** no navegador. Para parar, aperte **Ctrl+C** no Prompt.
+O script confere se uv, npm e as dependências estão instalados e diz o que falta. Quando aparecer **"LLM Council is running!"**, abra **http://localhost:5173** no navegador.
+
+- **Deixe a janela do Prompt aberta** enquanto usa o app. Fechar a janela desliga o app.
+- **Para parar:** clique na janela do Prompt e aperte **Ctrl+C**.
+- **Para usar de novo outro dia:** abra o Prompt e rode só:
+
+```bash
+cd %USERPROFILE%\llm-council
+```
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
 
 </details>
 
