@@ -88,6 +88,7 @@ export default function CouncilDeliberation({
       tokens: state.tokens,
       liveTokens: tokenData.tokens,
       tokenRate: tokenData.rate,
+      elapsed: tokenData.elapsed,
       stage: state.stage || activeStage,
     };
   });
@@ -151,7 +152,7 @@ export default function CouncilDeliberation({
           {/* Live Total Tokens Metric */}
           <div className="deliberation-tokens-badge" title="Tokens acumulados em tempo real">
             <span className="tokens-bolt">⚡</span>
-            <span className="tokens-val">{formatTokenCount(totalTokens)}</span>
+            <span className="tokens-val">~{formatTokenCount(totalTokens)}</span>
             <span className="tokens-unit">tokens</span>
           </div>
 
@@ -275,10 +276,7 @@ export default function CouncilDeliberation({
                             ? (t('modelReviewing') || 'Avaliando…')
                             : (t('modelThinking') || 'Pensando…')}
                         </span>
-                        <span className="seat-live-tokens">
-                          {formatTokenCount(m.liveTokens)} tks
-                          <span className="seat-rate">+{m.tokenRate}/s</span>
-                        </span>
+                        <span className="seat-live-tokens">{m.elapsed}s</span>
                       </div>
                     ) : isFinished ? (
                       <div className="seat-status-done">
@@ -288,9 +286,9 @@ export default function CouncilDeliberation({
                           </svg>
                           {m.duration ? `${m.duration}s` : (t('modelDone') || 'Concluído')}
                         </span>
-                        <span className="seat-done-tokens">
-                          {formatTokenCount(m.liveTokens)} tokens
-                        </span>
+                        {m.liveTokens > 0 && (
+                          <span className="seat-done-tokens">~{formatTokenCount(m.liveTokens)} tokens</span>
+                        )}
                       </div>
                     ) : (
                       <span className="status-badge waiting">
@@ -323,10 +321,7 @@ export default function CouncilDeliberation({
                         <span className="pulse-dot" />
                         {t('modelSynthesizing') || 'Sintetizando…'}
                       </span>
-                      <span className="seat-live-tokens chair">
-                        {formatTokenCount(chairTokenData.tokens)} tks
-                        <span className="seat-rate">+{chairTokenData.rate}/s</span>
-                      </span>
+                      <span className="seat-live-tokens chair">{chairTokenData.elapsed}s</span>
                     </div>
                   ) : isDone ? (
                     <div className="seat-status-done">
@@ -336,9 +331,9 @@ export default function CouncilDeliberation({
                         </svg>
                         {t('modelDone') || 'Concluído'}
                       </span>
-                      <span className="seat-done-tokens">
-                        {formatTokenCount(chairTokenData.tokens)} tokens
-                      </span>
+                      {chairTokenData.tokens > 0 && (
+                        <span className="seat-done-tokens">~{formatTokenCount(chairTokenData.tokens)} tokens</span>
+                      )}
                     </div>
                   ) : (
                     <span className="status-badge waiting">

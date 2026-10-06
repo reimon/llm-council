@@ -32,24 +32,20 @@ export function calculateLiveTokens({
   isProject = false,
   currentTime = Date.now(),
 }) {
-  const baseTokens = isProject ? 750 + index * 95 : 320 + index * 45;
-  const rate = 32 + ((index * 7) % 15); // 32 to 46 tokens/sec
-
   if (status === 'waiting') {
     return { tokens: 0, rate: 0, isLive: false };
   }
 
+  // The CLIs don't report token usage while running, so nothing is invented here:
+  // a running model shows elapsed time, a finished one the backend's size estimate.
   if (status === 'completed') {
-    const tokens = finalTokens || Math.round(baseTokens + (duration || 6) * rate);
-    return { tokens, rate: 0, isLive: false };
+    return { tokens: finalTokens || 0, rate: 0, isLive: false, elapsed: duration || 0 };
   }
 
   if (status === 'thinking') {
-    const start = startedAt || deliberationStartedAt || currentTime - 1000;
-    const elapsedSecs = Math.max(0.4, (currentTime - start) / 1000);
-    const jitter = Math.floor(Math.sin(elapsedSecs * 7 + index) * 3);
-    const tokens = baseTokens + Math.floor(elapsedSecs * rate) + jitter;
-    return { tokens: Math.max(baseTokens, tokens), rate, isLive: true };
+    const start = startedAt || deliberationStartedAt || currentTime;
+    const elapsed = Math.max(0, Math.floor((currentTime - start) / 1000));
+    return { tokens: 0, rate: 0, isLive: true, elapsed };
   }
 
   return { tokens: 0, rate: 0, isLive: false };
@@ -713,15 +709,17 @@ export default function Council3DVisualizer({
                 {isThinking ? (
                   <div className="c3d-tokens-live">
                     <span className="c3d-token-pulse-dot" />
-                    <span className="c3d-token-count">{formatTokenCount(tokenData.tokens)}</span>
-                    <span className="c3d-token-unit">tks</span>
-                    <span className="c3d-token-rate">+{tokenData.rate}/s</span>
+                    <span className="c3d-token-count">{tokenData.elapsed}s</span>
                   </div>
                 ) : isDone ? (
                   <div className="c3d-tokens-done">
                     <span className="c3d-check">✓</span>
-                    <span className="c3d-token-count">{formatTokenCount(tokenData.tokens)}</span>
-                    <span className="c3d-token-unit">tks</span>
+                    {tokenData.tokens > 0 && (
+                      <>
+                        <span className="c3d-token-count">~{formatTokenCount(tokenData.tokens)}</span>
+                        <span className="c3d-token-unit">tks</span>
+                      </>
+                    )}
                     {member.duration && <span className="c3d-token-time">{member.duration}s</span>}
                   </div>
                 ) : (
@@ -747,9 +745,7 @@ export default function Council3DVisualizer({
             <div className="c3d-badge-tokens">
               <div className="c3d-tokens-live chair">
                 <span className="c3d-token-pulse-dot chair" />
-                <span className="c3d-token-count">{formatTokenCount(chairTokenData.tokens)}</span>
-                <span className="c3d-token-unit">tks</span>
-                <span className="c3d-token-rate chair">+{chairTokenData.rate}/s</span>
+                <span className="c3d-token-count">{chairTokenData.elapsed}s</span>
               </div>
             </div>
           )}
