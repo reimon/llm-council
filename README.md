@@ -12,37 +12,44 @@ Fork do [karpathy/llm-council](https://github.com/karpathy/llm-council). A ideia
 
 O LLM Council não usa chave de API. Ele conversa com os programas de IA que você já tem instalados e logados no seu computador. Você precisa de **pelo menos um** deles; quanto mais tiver, mais variado fica o conselho.
 
-### 1. Instale as ferramentas básicas
+Siga os passos **na ordem**. Cada passo termina com um comando de conferência: só avance quando ele funcionar.
 
-- [uv](https://docs.astral.sh/uv/) (Python)
-- [Node.js](https://nodejs.org/) 18 ou mais novo
-- Opcional: [ffmpeg](https://ffmpeg.org/download.html), só para anexar vídeos
+> **Regra de ouro:** depois de instalar qualquer programa (Git, Node.js, uv), **feche o terminal e abra de novo**. Sem isso, o terminal não enxerga o programa novo e aparece "is not recognized" (Windows) ou "command not found" (macOS/Linux).
 
-Para instalar o uv:
+<details open>
+<summary><strong>Windows</strong></summary>
 
-- **macOS / Linux:** `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Windows** (Prompt de Comando ou PowerShell): `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+Use o **Prompt de Comando** (procure "cmd" no menu Iniciar). Comandos de Mac/Linux como `ls` não existem aqui; o equivalente é `dir`.
 
-Depois de instalar o uv ou o Node.js, **feche e abra o terminal de novo**, senão aparece "uv is not recognized" (Windows) ou "command not found" (macOS/Linux).
+**1. Git.** Baixe e instale em https://git-scm.com/download/win (pode aceitar as opções padrão). Reabra o Prompt e confira:
 
-### 2. Instale e faça login nos programas de IA
+```bash
+git --version
+```
 
-| Programa | Modelos | Instalar | Fazer login |
-|---|---|---|---|
-| **Codex CLI** | GPT (OpenAI) | `npm install -g @openai/codex` | `codex login` (conta ChatGPT) |
-| **Claude Code** | Claude (Anthropic) | `npm install -g @anthropic-ai/claude-code` | rode `claude` e siga o login |
-| **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | chave gratuita (veja abaixo) |
-| **Antigravity** | Gemini, Claude e outros | instale o app Antigravity (traz o comando `agy`) | faça login no app |
+**2. Node.js.** Baixe a versão **LTS** em https://nodejs.org e instale (opções padrão). Reabra o Prompt e confira (deve aparecer um número de versão):
 
-Dicas:
-- O login de cada um é feito **por você**, uma vez, no terminal ou no app. O LLM Council só usa o login que já existe.
-- O uso conta no limite do seu plano em cada serviço (ChatGPT, Claude, Google).
-- **Gemini:** há dois caminhos.
-  - **Antigravity:** funciona com o login normal da sua conta Google, mas é um agente completo e leva de 40 a 60 segundos por resposta, mesmo para perguntas curtas.
-  - **Gemini CLI:** mais rápido, mas o Google **não aceita mais login com conta pessoal** nele (aparece "This client is no longer supported for Gemini Code Assist for individuals"). Ele só funciona com uma **chave de API gratuita**: crie em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e salve no arquivo `~/.gemini/.env` assim: `GEMINI_API_KEY=sua-chave`. Depois rode `gemini` uma vez e escolha **2. Use Gemini API Key**, para ele deixar de tentar o login com Google. A chave gratuita tem limite de uso.
-- Todos rodam em modo **somente leitura**: podem ler as pastas que você indicar, mas não alteram nada.
+```bash
+npm --version
+```
 
-### 3. Baixe e inicie o app
+**3. uv** (gerencia o Python do backend):
+
+```bash
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Reabra o Prompt e confira:
+
+```bash
+uv --version
+```
+
+**4. Baixe o LLM Council** (fica em `C:\Users\SEU-USUARIO\llm-council`):
+
+```bash
+cd %USERPROFILE%
+```
 
 ```bash
 git clone https://github.com/reimon/llm-council.git
@@ -50,6 +57,119 @@ git clone https://github.com/reimon/llm-council.git
 
 ```bash
 cd llm-council
+```
+
+**5. Instale as dependências:**
+
+```bash
+uv sync
+```
+
+```bash
+cd frontend && npm install && cd ..
+```
+
+Se o `npm install` der erro de permissão, abra o Prompt **como administrador** (clique com o botão direito em "Prompt de Comando") e repita.
+
+**6. Instale e faça login em pelo menos um programa de IA** (veja a tabela em [Programas de IA](#programas-de-ia) logo abaixo). Exemplo com o Codex:
+
+```bash
+npm install -g @openai/codex
+```
+
+```bash
+codex login
+```
+
+**7. Inicie o app:**
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+O script confere se uv, npm e as dependências estão instalados e diz o que falta. Quando aparecer "LLM Council is running!", abra **http://localhost:5173** no navegador. Para parar, aperte **Ctrl+C** no Prompt.
+
+</details>
+
+<details open>
+<summary><strong>macOS e Linux</strong></summary>
+
+Use o **Terminal**.
+
+**1. Git.** No macOS, rode `xcode-select --install` (instala o Git junto). No Linux, use o gerenciador de pacotes (ex.: `sudo apt install git`). Confira:
+
+```bash
+git --version
+```
+
+**2. Node.js.** Baixe a versão **LTS** em https://nodejs.org (ou use `brew install node` no macOS). Reabra o Terminal e confira:
+
+```bash
+npm --version
+```
+
+**3. uv:**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Reabra o Terminal e confira:
+
+```bash
+uv --version
+```
+
+**4. Baixe o LLM Council:**
+
+```bash
+cd ~
+```
+
+```bash
+git clone https://github.com/reimon/llm-council.git
+```
+
+```bash
+cd llm-council
+```
+
+**5. Instale as dependências:**
+
+```bash
+uv sync
+```
+
+```bash
+cd frontend && npm install && cd ..
+```
+
+**6. Instale e faça login em pelo menos um programa de IA** (veja [Programas de IA](#programas-de-ia) abaixo). Exemplo com o Codex:
+
+```bash
+npm install -g @openai/codex
+```
+
+```bash
+codex login
+```
+
+**7. Inicie o app:**
+
+```bash
+./start.sh
+```
+
+Abra **http://localhost:5173** no navegador. Para parar, aperte **Ctrl+C** no Terminal.
+
+</details>
+
+**Opcional:** para anexar vídeos, instale o [ffmpeg](https://ffmpeg.org/download.html) (no macOS: `brew install ffmpeg`).
+
+**Para atualizar** o LLM Council depois, dentro da pasta `llm-council`:
+
+```bash
+git pull
 ```
 
 ```bash
@@ -60,23 +180,23 @@ uv sync
 cd frontend && npm install && cd ..
 ```
 
-Para iniciar no macOS ou Linux:
+### Programas de IA
 
-```bash
-./start.sh
-```
+| Programa | Modelos | Instalar | Fazer login |
+|---|---|---|---|
+| **Codex CLI** | GPT (OpenAI) | `npm install -g @openai/codex` | `codex login` (conta ChatGPT) |
+| **Claude Code** | Claude (Anthropic) | `npm install -g @anthropic-ai/claude-code` | rode `claude` e siga o login |
+| **Antigravity** | Gemini, Claude e outros | instale o app Antigravity (traz o comando `agy`) | faça login no app |
+| **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | chave gratuita (veja abaixo) |
 
-No Windows (PowerShell):
+- O login de cada um é feito **por você**, uma vez, no terminal ou no app. O LLM Council só usa o login que já existe.
+- O uso conta no limite do seu plano em cada serviço (ChatGPT, Claude, Google).
+- **Gemini:** há dois caminhos.
+  - **Antigravity:** funciona com o login normal da sua conta Google, mas leva de 40 a 60 segundos por resposta, mesmo para perguntas curtas. Se você não usa as ferramentas de dados do Google Cloud, desligar os servidores MCP da extensão Data Cloud (`agy mcp list` e `agy mcp disable <nome>`) acelera o início.
+  - **Gemini CLI:** mais rápido, mas o Google **não aceita mais login com conta pessoal** nele (aparece "This client is no longer supported for Gemini Code Assist for individuals"). Ele só funciona com uma **chave de API gratuita**: crie em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e salve no arquivo `~/.gemini/.env` (no Windows, `%USERPROFILE%\.gemini\.env`) assim: `GEMINI_API_KEY=sua-chave`. Depois rode `gemini` uma vez e escolha **2. Use Gemini API Key**. A chave gratuita tem limite de uso.
+- Todos rodam em modo **somente leitura**: podem ler as pastas que você indicar, mas não alteram nada.
 
-```bash
-powershell -ExecutionPolicy Bypass -File .\start.ps1
-```
-
-Depois abra http://localhost:5173 no navegador.
-
-No Windows, use o Prompt de Comando ou o PowerShell. Comandos do macOS/Linux como `ls` não existem lá (o equivalente é `dir`), e `npm install -g` pode pedir um terminal aberto como administrador.
-
-### 4. Monte o seu conselho
+### 8. Monte o seu conselho
 
 1. Clique em **Configurar conselho**. Você vê a mesa com o presidente (coroa) e os conselheiros.
 2. Clique numa cadeira. Em **Onde roda**, escolha o programa; o app mostra só os instalados e avisa **"Precisa de chave"** quando falta a chave do Gemini CLI.
@@ -84,7 +204,7 @@ No Windows, use o Prompt de Comando ou o PowerShell. Comandos do macOS/Linux com
 4. Escolha o **papel** (Contrário, Executor…) e, se quiser, adicione **skills** pela **Biblioteca de skills**.
 5. Clique em **Salvar conselho**. Você pode criar vários conselhos (ex.: "Produto", "Código", "Rápido") com **+ Novo conselho**.
 
-### 5. Faça perguntas
+### 9. Faça perguntas
 
 - **Nova pergunta:** pergunta geral. No campo de pergunta, escolha qual conselho responde e use **+** para anexar imagens, vídeos, pastas ou links.
 - **Projetos → Adicionar:** cadastre a pasta de um projeto; nos chats dele, os modelos leem o código antes de responder.
@@ -101,6 +221,10 @@ No Windows, use o Prompt de Comando ou o PowerShell. Comandos do macOS/Linux com
 | Gemini pelo Antigravity muito lento | É o tempo do próprio Antigravity. Use o Gemini CLI ou crie um conselho "rápido" sem ele. |
 | Tokens mostrados com "~" | São estimativas pelo tamanho da resposta. Claude Code e Antigravity informam o uso real, que aparece sem "~" (passe o mouse para ver entrada, saída e pensamento). O Codex não informa, então fica estimado. |
 | Página não carrega os dados | Confira se o backend está rodando (`./start.sh`) e use http://localhost:5173. |
+| "is not recognized" / "command not found" (uv, npm, git, codex…) | O programa não está instalado ou o terminal foi aberto antes de instalar. Instale e **reabra o terminal**. |
+| Windows: `Start-Process … npm.cmd … cannot find the file` | O Node.js não está instalado. Instale a versão LTS de nodejs.org, reabra o Prompt e confira com `npm --version`. |
+| "address already in use" / porta 8001 ou 5173 ocupada | Uma tentativa anterior deixou o app rodando. Feche o terminal antigo (ou reinicie o computador) e inicie de novo. |
+| `npm install -g` dá erro de permissão | Windows: abra o Prompt como administrador. macOS/Linux: veja https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally |
 
 ## O que muda neste fork
 
