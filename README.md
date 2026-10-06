@@ -14,7 +14,7 @@ O LLM Council não usa chave de API. Ele conversa com os programas de IA que voc
 
 ### Instalação automática (recomendado)
 
-Um comando só instala tudo o que falta (Git, Node.js, uv), baixa o projeto, instala as dependências, pergunta quais programas de IA você quer (instalando e abrindo o login de cada um) e já inicia o app.
+Um comando só instala tudo o que falta (Git, Node.js, uv), baixa o projeto, instala as dependências, pergunta quais programas de IA você quer instalar (incluindo a Antigravity CLI, `agy`), abre o login de cada um e já inicia o app.
 
 **Windows:** abra o **Prompt de Comando** (tecla Windows, digite **cmd**, Enter), cole o comando abaixo e aperte Enter:
 
@@ -222,7 +222,9 @@ Siga o login que aparece na tela (conta Claude). Depois feche com **Ctrl+C** dua
 curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd
 ```
 
-Feche e abra o Prompt e confira se a CLI foi encontrada:
+Se aparecer a mensagem **"binary is not in your active PATH"**, a instalação foi concluída, mas o Prompt atual ainda não atualizou o caminho. Feche todas as janelas do Prompt, abra uma nova e confira com `where agy`.
+
+Confira também se a CLI responde:
 
 ```bash
 agy --version
