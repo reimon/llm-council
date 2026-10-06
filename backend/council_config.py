@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-from .platform_utils import resolve_bin
+from .platform_utils import resolve_bin, find_bin
 from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, LLM_PROVIDER
 
 COUNCIL_PATH = os.path.join(os.path.dirname(DATA_DIR), "council.json")
@@ -109,7 +109,7 @@ def list_providers() -> List[Dict[str, Any]]:
     }
     result = []
     for pid, info in PROVIDERS.items():
-        installed = shutil.which(info["bin"]) is not None
+        installed = find_bin(info["bin"]) is not None
         models: List[str] = []
         if installed:
             cached = _models_cache.get(pid)

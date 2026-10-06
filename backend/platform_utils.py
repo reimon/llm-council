@@ -13,12 +13,41 @@ IS_MAC = sys.platform == "darwin"
 MAX_ARG_CHARS = 24000
 
 
+def _extra_bin_dirs():
+    """
+    Where npm, uv and installers put CLIs. A backend started before a tool was installed
+    has an old PATH, so these are searched too.
+    """
+    home = os.path.expanduser("~")
+    dirs = [os.path.join(home, ".local", "bin")]
+    if IS_WINDOWS:
+        appdata = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
+        local = os.environ.get("LOCALAPPDATA", os.path.join(home, "AppData", "Local"))
+        dirs += [
+            os.path.join(appdata, "npm"),
+            os.path.join(local, "Programs", "Antigravity", "bin"),
+            os.path.join(local, "Programs", "antigravity", "bin"),
+        ]
+    else:
+        dirs += ["/opt/homebrew/bin", "/usr/local/bin", os.path.join(home, ".npm-global", "bin")]
+    return [d for d in dirs if os.path.isdir(d)]
+
+
+def find_bin(name: str) -> Optional[str]:
+    """Full path of a CLI, or None if it is not installed."""
+    found = shutil.which(name)
+    if found:
+        return found
+    extra = os.pathsep.join(_extra_bin_dirs())
+    return shutil.which(name, path=extra) if extra else None
+
+
 def resolve_bin(name: str) -> str:
     """
     Full path of a CLI. On Windows, npm-installed tools are `.cmd` shims that
     CreateProcess only finds through their full path, so a bare name is not enough.
     """
-    return shutil.which(name) or name
+    return find_bin(name) or name
 
 
 def pick_folder(prompt: str) -> Optional[str]:
