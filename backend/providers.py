@@ -1,0 +1,94 @@
+"""Route a query to the right local CLI (Codex, Claude Code, Antigravity) or OpenRouter."""
+
+import asyncio
+import contextvars
+import os
+import tempfile
+from typing import Any, Dict, List, Optional
+
+from . import codex_client
+from .codex_client import project_dir, attached_images, PROJECT_PREAMBLE, _messages_to_prompt
+
+# Folders attached to the current question; CLIs that sandbox file reads need them allowed.
+extra_dirs: contextvars.ContextVar = contextvars.ContextVar("extra_dirs", default=())
+
+CLAUDE_BLOCKED_TOOLS = "Edit Write MultiEdit NotebookEdit Bash"
+
+
+def _cli_prompt(messages: List[Dict[str, str]]) -> str:
+    """Codex receives images natively; the other CLIs get the file paths to open themselves."""
+    prompt = _messages_to_prompt(messages)
+    workdir = project_dir.get()
+    if workdir:
+        prompt = PROJECT_PREAMBLE.format(path=workdir) + prompt
+    images = attached_images.get()
+    if images:
+        listing = "\n".join(f"- {p}" for p in images)
+        prompt += f"\n\nImage files attached to this question (open and look at them):\n{listing}"
+    return prompt
+
+
+def _readable_dirs() -> List[str]:
+    dirs = {os.path.dirname(p) for p in attached_images.get()}
+    dirs.update(extra_dirs.get())
+    if project_dir.get():
+        dirs.add(project_dir.get())
+    return sorted(dirs)
+
+
+async def _run_cli(args: List[str], stdin: Optional[str], timeout: float, label: str) -> Optional[Dict[str, Any]]:
+    workdir = project_dir.get() or tempfile.gettempdir()
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *args,
+            cwd=workdir,
+            stdin=asyncio.subprocess.PIPE if stdin is not None else asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            out, err = await asyncio.wait_for(
+                proc.communicate(stdin.encode() if stdin is not None else None), timeout
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            raise RuntimeError(f"timed out after {timeout}s")
+        if proc.returncode != 0:
+            raise RuntimeError(err.decode(errors="ignore")[-500:] or f"exit code {proc.returncode}")
+        return {"content": out.decode(errors="ignore").strip(), "reasoning_details": None}
+    except Exception as e:
+        print(f"Error querying {label}: {e}")
+        return None
+
+
+async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], timeout: float = 300.0) -> Optional[Dict[str, Any]]:
+    """Query one council seat ({provider, model}) with the given messages."""
+    provider, model = member.get("provider", "codex"), member.get("model", "")
+    if project_dir.get():
+        timeout = max(timeout, 900.0)
+
+    if provider == "codex":
+        return await codex_client.query_model(model, messages, timeout)
+
+    if provider == "openrouter":
+        from .openrouter import query_model as openrouter_query
+        return await openrouter_query(model, messages, timeout)
+
+    if provider == "claude":
+        args = ["claude", "-p", "--output-format", "text", "--disallowedTools", CLAUDE_BLOCKED_TOOLS]
+        if model:
+            args += ["--model", model]
+        for d in _readable_dirs():
+            args += ["--add-dir", d]
+        return await _run_cli(args, _cli_prompt(messages), timeout, f"claude:{model}")
+
+    if provider == "antigravity":
+        args = ["agy", "-p", _cli_prompt(messages), "--mode", "plan", "--print-timeout", f"{int(timeout)}s"]
+        if model:
+            args += ["--model", model]
+        for d in _readable_dirs():
+            args += ["--add-dir", d]
+        return await _run_cli(args, None, timeout + 30, f"antigravity:{model}")
+
+    print(f"Unknown provider: {provider}")
+    return None

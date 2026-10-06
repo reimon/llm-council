@@ -1,12 +1,19 @@
 """3-stage LLM Council orchestration."""
 
+import asyncio
 from typing import List, Dict, Any, Tuple
-from .config import LLM_PROVIDER
-if LLM_PROVIDER == "codex":
-    from .codex_client import query_models_parallel, query_model
-else:
-    from .openrouter import query_models_parallel, query_model
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL
+from .config import LLM_PROVIDER, TITLE_MODEL
+from .council_config import active_members, load_council, role_prompt
+from .providers import query_member
+
+
+async def query_members_parallel(
+    members: List[Dict[str, Any]],
+    build_messages,
+) -> List[Tuple[Dict[str, Any], Any]]:
+    """Query each seat in parallel; build_messages(member) lets each seat get its own prompt."""
+    responses = await asyncio.gather(*[query_member(m, build_messages(m)) for m in members])
+    return list(zip(members, responses))
 
 
 async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
@@ -19,17 +26,21 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
     Returns:
         List of dicts with 'model' and 'response' keys
     """
-    messages = [{"role": "user", "content": user_query}]
+    def build(member):
+        persona = role_prompt(member.get("role"))
+        content = f"{persona}\n\n{user_query}" if persona else user_query
+        return [{"role": "user", "content": content}]
 
-    # Query all models in parallel
-    responses = await query_models_parallel(COUNCIL_MODELS, messages)
+    # Query all seats in parallel, each with its role
+    responses = await query_members_parallel(active_members(), build)
 
     # Format results
     stage1_results = []
-    for model, response in responses.items():
+    for member, response in responses:
         if response is not None:  # Only include successful responses
             stage1_results.append({
-                "model": model,
+                "model": member["name"],
+                "role": member.get("role", "generalist"),
                 "response": response.get('content', '')
             })
 
@@ -98,17 +109,17 @@ Now provide your evaluation and ranking:"""
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
-    # Get rankings from all council models in parallel
-    responses = await query_models_parallel(COUNCIL_MODELS, messages)
+    # Get rankings from all council seats in parallel (roles do not apply when judging)
+    responses = await query_members_parallel(active_members(), lambda m: messages)
 
     # Format results
     stage2_results = []
-    for model, response in responses.items():
+    for member, response in responses:
         if response is not None:
             full_text = response.get('content', '')
             parsed = parse_ranking_from_text(full_text)
             stage2_results.append({
-                "model": model,
+                "model": member["name"],
                 "ranking": full_text,
                 "parsed_ranking": parsed
             })
@@ -134,7 +145,7 @@ async def stage3_synthesize_final(
     """
     # Build comprehensive context for chairman
     stage1_text = "\n\n".join([
-        f"Model: {result['model']}\nResponse: {result['response']}"
+        f"Model: {result['model']} (council role: {result.get('role', 'generalist')})\nResponse: {result['response']}"
         for result in stage1_results
     ])
 
@@ -162,18 +173,19 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     messages = [{"role": "user", "content": chairman_prompt}]
 
-    # Query the chairman model
-    response = await query_model(CHAIRMAN_MODEL, messages)
+    # Query the chairman
+    chairman = load_council()["chairman"]
+    response = await query_member(chairman, messages)
 
     if response is None:
         # Fallback if chairman fails
         return {
-            "model": CHAIRMAN_MODEL,
+            "model": chairman["name"],
             "response": "Error: Unable to generate final synthesis."
         }
 
     return {
-        "model": CHAIRMAN_MODEL,
+        "model": chairman["name"],
         "response": response.get('content', '')
     }
 
@@ -279,7 +291,8 @@ Title:"""
     messages = [{"role": "user", "content": title_prompt}]
 
     # Use gemini-2.5-flash for title generation (fast and cheap)
-    response = await query_model(TITLE_MODEL, messages, timeout=120.0)
+    title_provider = "codex" if LLM_PROVIDER == "codex" else "openrouter"
+    response = await query_member({"provider": title_provider, "model": TITLE_MODEL}, messages, timeout=120.0)
 
     if response is None:
         # Fallback to a generic title

@@ -38,6 +38,27 @@ LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
+### Câmara do conselho: escolha quem senta à mesa
+
+Em **Configurar conselho**, o conselho aparece como uma mesa redonda: o presidente com coroa no topo e cada conselheiro numa cadeira, na cor do seu papel. Clicando numa cadeira, você vê e muda:
+
+- **Onde roda:** Codex CLI, Claude Code ou Antigravity (o app detecta quais estão instalados e lista os modelos de cada um).
+- **Modelo:** escolhido numa lista com busca, e **Testar conexão** mostra se o modelo responde e em quanto tempo.
+- **Papel no conselho:** muda o ângulo da resposta na etapa 1. A avaliação da etapa 2 continua neutra e às cegas.
+
+| Papel | O que faz |
+|---|---|
+| Generalista | Responde direto, sem um ângulo específico |
+| Contrário | Questiona premissas, procura riscos e cenários de falha |
+| Primeiros princípios | Decompõe o problema até os fundamentos |
+| Expansionista | Procura oportunidades e ideias ambiciosas |
+| Olhar de fora | Traz outras áreas, casos análogos e comparações |
+| Executor | Transforma a resposta em passos, metas e riscos |
+
+Também dá para adicionar cadeiras, tirar alguém de uma sessão sem apagar a cadeira, tornar um conselheiro presidente e misturar provedores: por exemplo, GPT pelo Codex, Claude Sonnet pelo Claude Code e Gemini 3.1 Pro pelo Antigravity, com o Claude Opus presidindo. A configuração fica em `data/council.json`. Na etapa 1, cada aba mostra em que papel o modelo respondeu.
+
+Requisitos: o `claude` (Claude Code) e o `agy` (Antigravity) precisam estar instalados e logados. Os dois rodam sem permissão de editar arquivos.
+
 ### Perguntas sobre os seus projetos
 
 Você pode cadastrar a pasta de um projeto e abrir vários chats dentro dele. Nesses chats, cada modelo do conselho lê os arquivos do projeto antes de responder.

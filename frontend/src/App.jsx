@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import ConfirmDialog from './components/ConfirmDialog';
+import CouncilRoom from './components/CouncilRoom';
 import { api } from './api';
 import { useLang } from './i18n';
 import './App.css';
@@ -15,6 +16,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   // In-app confirmation; native window.confirm is blocked in some embedded browsers
   const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [view, setView] = useState('chat'); // 'chat' | 'council'
 
   // Load conversations on mount
   useEffect(() => {
@@ -58,6 +60,7 @@ function App() {
   const handleNewConversation = async (projectId = null) => {
     try {
       const newConv = await api.createConversation(projectId);
+      setView('chat');
       setConversations([
         {
           id: newConv.id,
@@ -74,6 +77,7 @@ function App() {
   };
 
   const handleSelectConversation = (id) => {
+    setView('chat');
     setCurrentConversationId(id);
   };
 
@@ -268,12 +272,18 @@ function App() {
         projects={projects}
         onCreateProject={handleCreateProject}
         onDeleteProject={handleDeleteProject}
+        onOpenCouncil={() => setView('council')}
+        councilOpen={view === 'council'}
       />
-      <ChatInterface
-        conversation={currentConversation}
-        onSendMessage={handleSendMessage}
-        isLoading={isLoading}
-      />
+      {view === 'council' ? (
+        <CouncilRoom onClose={() => setView('chat')} />
+      ) : (
+        <ChatInterface
+          conversation={currentConversation}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+        />
+      )}
       {pendingConfirm && (
         <ConfirmDialog
           {...pendingConfirm}

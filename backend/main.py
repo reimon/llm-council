@@ -16,6 +16,9 @@ from . import storage
 from .config import LLM_PROVIDER
 from .codex_client import project_dir, attached_images
 from . import attachments as attachments_mod
+from . import council_config
+from .providers import extra_dirs, query_member
+import time
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -139,6 +142,38 @@ async def get_upload(upload_id: str, filename: str):
     return FileResponse(path)
 
 
+@app.get("/api/council")
+async def get_council():
+    """Current council seats and chairman."""
+    return council_config.load_council()
+
+
+@app.put("/api/council")
+async def put_council(council: Dict[str, Any]):
+    """Replace the council setup."""
+    try:
+        return council_config.save_council(council)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/providers")
+async def get_providers():
+    """Installed LLM CLIs and their models."""
+    return await asyncio.to_thread(council_config.list_providers)
+
+
+@app.post("/api/council/test")
+async def test_seat(seat: Dict[str, Any]):
+    """Ping one provider/model so the user can check it answers."""
+    start = time.time()
+    response = await query_member(seat, [{"role": "user", "content": "Reply with exactly: ok"}], timeout=180.0)
+    elapsed = round(time.time() - start, 1)
+    if response is None or not response.get("content"):
+        return {"ok": False, "seconds": elapsed}
+    return {"ok": True, "seconds": elapsed, "reply": response["content"][:200]}
+
+
 @app.post("/api/pick-folder")
 async def pick_folder():
     """Open the native macOS folder picker and return the chosen path."""
@@ -211,6 +246,7 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
 
     query, images = await attachments_mod.build_context(request.content, request.attachments)
     attached_images.set(tuple(images))
+    extra_dirs.set(tuple(x["path"] for x in request.attachments if x.get("kind") == "folder"))
 
     # Run the 3-stage council process
     stage1_results, stage2_results, stage3_result, metadata = await run_full_council(query)
@@ -266,6 +302,7 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             # Fold attachments into the question; images go to the models as files
             query, images = await attachments_mod.build_context(request.content, request.attachments)
             attached_images.set(tuple(images))
+            extra_dirs.set(tuple(x["path"] for x in request.attachments if x.get("kind") == "folder"))
 
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"

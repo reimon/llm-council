@@ -40,6 +40,12 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Assistant messages contain: `{role, stage1, stage2, stage3}`
 - Metadata (label_to_model, aggregate_rankings) is persisted on each assistant message
 
+**Council setup** (`council_config.py`, `providers.py`, `components/CouncilRoom.jsx`)
+- Seats live in `data/council.json` (`members[]` with provider/model/role/enabled, plus `chairman`); without the file a default is built from `COUNCIL_MODELS`/`CHAIRMAN_MODEL`
+- Seat `name` labels results everywhere (Stage 1/2 tabs, label_to_model), so `save_council` makes names unique
+- `providers.query_member()` routes by provider: codex (`codex exec`), claude (`claude -p`, write tools disallowed, `--add-dir` for project/attachments), antigravity (`agy -p --mode plan`), openrouter
+- Roles add a persona prompt in Stage 1 only; Stage 2 ranking stays neutral
+
 **Projects** (`storage.py`, `main.py`, `codex_client.py`)
 - Projects (`{id, name, path}`) live in `data/projects.json`; conversations carry `project_id`
 - For project chats the API sets the `project_dir` contextvar in `codex_client.py`, so every Codex call in Stages 1-3 runs with `-C <path>` (read-only sandbox) plus a preamble telling the model to read the code; timeout rises to 900s

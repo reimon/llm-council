@@ -117,6 +117,38 @@ export const api = {
     return `${API_BASE}/api/uploads/${uploadId}/${encodeURIComponent(filename)}`;
   },
 
+  async getCouncil() {
+    const response = await fetch(`${API_BASE}/api/council`);
+    if (!response.ok) throw new Error('Failed to load council');
+    return response.json();
+  },
+
+  async saveCouncil(council) {
+    const response = await fetch(`${API_BASE}/api/council`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(council),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Failed to save council');
+    return data;
+  },
+
+  async getProviders() {
+    const response = await fetch(`${API_BASE}/api/providers`);
+    if (!response.ok) throw new Error('Failed to load providers');
+    return response.json();
+  },
+
+  async testSeat(seat) {
+    const response = await fetch(`${API_BASE}/api/council/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(seat),
+    });
+    return response.json();
+  },
+
   /**
    * Delete a conversation.
    */

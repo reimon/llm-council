@@ -124,6 +124,8 @@ export default function Sidebar({
   projects,
   onCreateProject,
   onDeleteProject,
+  onOpenCouncil,
+  councilOpen,
 }) {
   const { t, lang, toggle: toggleLang } = useLang();
   const [showForm, setShowForm] = useState(false);
@@ -163,6 +165,16 @@ export default function Sidebar({
         </h1>
         <button className="new-conversation-btn" onClick={() => onNewConversation(null)}>
           {t('newQuestion')}
+        </button>
+        <button
+          type="button"
+          className={`council-btn ${councilOpen ? 'active' : ''}`}
+          onClick={onOpenCouncil}
+        >
+          <span className="brand-seats" aria-hidden="true">
+            <i /><i /><i /><i /><i />
+          </span>
+          {t('configureCouncil')}
         </button>
       </div>
 
