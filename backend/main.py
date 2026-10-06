@@ -76,6 +76,18 @@ async def get_conversation(conversation_id: str):
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Older conversations were saved without ranking metadata; rebuild it.
+    # Labels are assigned in Stage 1 order (Response A = first model), so this is exact.
+    for msg in conversation["messages"]:
+        if msg.get("role") == "assistant" and not msg.get("metadata") and msg.get("stage1") and msg.get("stage2"):
+            label_to_model = {
+                f"Response {chr(65 + i)}": r["model"] for i, r in enumerate(msg["stage1"])
+            }
+            msg["metadata"] = {
+                "label_to_model": label_to_model,
+                "aggregate_rankings": calculate_aggregate_rankings(msg["stage2"], label_to_model),
+            }
     return conversation
 
 
@@ -111,7 +123,8 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         conversation_id,
         stage1_results,
         stage2_results,
-        stage3_result
+        stage3_result,
+        metadata
     )
 
     # Return the complete response with metadata
@@ -174,7 +187,8 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 conversation_id,
                 stage1_results,
                 stage2_results,
-                stage3_result
+                stage3_result,
+                {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}
             )
 
             # Send completion event

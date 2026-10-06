@@ -38,7 +38,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - JSON-based conversation storage in `data/conversations/`
 - Each conversation: `{id, created_at, messages[]}`
 - Assistant messages contain: `{role, stage1, stage2, stage3}`
-- Note: metadata (label_to_model, aggregate_rankings) is NOT persisted to storage, only returned via API
+- Metadata (label_to_model, aggregate_rankings) is persisted on each assistant message
 
 **`main.py`**
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
@@ -50,7 +50,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 **`App.jsx`**
 - Main orchestration: manages conversations list and current conversation
 - Handles message sending and metadata storage
-- Important: metadata is stored in the UI state for display but not persisted to backend JSON
+- Metadata arrives via the stream and is also persisted in the backend JSON
 
 **`components/ChatInterface.jsx`**
 - Multiline textarea (3 rows, resizable)
@@ -130,7 +130,7 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 1. **Module Import Errors**: Always run backend as `python -m backend.main` from project root, not from backend directory
 2. **CORS Issues**: Frontend must match allowed origins in `main.py` CORS middleware
 3. **Ranking Parse Failures**: If models don't follow format, fallback regex extracts any "Response X" patterns in order
-4. **Missing Metadata**: Metadata is ephemeral (not persisted), only available in API responses
+4. **Missing Metadata**: Conversations saved before metadata persistence have no `metadata` field, so rankings will not show for them
 
 ## Future Enhancement Ideas
 
