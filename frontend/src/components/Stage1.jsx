@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useLang } from '../i18n';
 import './Stage1.css';
 
 export default function Stage1({ responses }) {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState(0);
 
   if (!responses || responses.length === 0) {
@@ -13,7 +15,7 @@ export default function Stage1({ responses }) {
     <div className="stage stage1">
       <header className="stage-head">
         <span className="stage-num">1</span>
-        <h3 className="stage-title">Cada modelo responde sozinho</h3>
+        <h3 className="stage-title">{t('stage1Title')}</h3>
       </header>
 
       <div className="tabs">

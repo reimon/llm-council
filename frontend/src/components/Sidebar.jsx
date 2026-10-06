@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { useLang } from '../i18n';
 import './Sidebar.css';
 
 function TrashIcon() {
@@ -19,6 +20,7 @@ function FolderIcon() {
 }
 
 function ConversationItem({ conv, active, onSelect, onDelete }) {
+  const { t, title } = useLang();
   return (
     <div
       className={`conversation-item ${active ? 'active' : ''}`}
@@ -27,15 +29,15 @@ function ConversationItem({ conv, active, onSelect, onDelete }) {
       role="button"
       tabIndex={0}
     >
-      <div className="conversation-title">{conv.title || 'Pergunta sem título'}</div>
+      <div className="conversation-title">{title(conv.title)}</div>
       <div className="conversation-meta">
-        {conv.message_count === 0 ? 'Ainda não enviada' : 'Respondida'}
+        {conv.message_count === 0 ? t('notSent') : t('answered')}
       </div>
       <button
         type="button"
         className="icon-btn delete-conversation-btn"
-        aria-label={`Apagar ${conv.title || 'conversa'}`}
-        title="Apagar conversa"
+        aria-label={t('deleteNamed', title(conv.title))}
+        title={t('deleteConversation')}
         onClick={(e) => {
           e.stopPropagation();
           onDelete(conv.id);
@@ -49,6 +51,7 @@ function ConversationItem({ conv, active, onSelect, onDelete }) {
 }
 
 function NewProjectForm({ onCreate, onCancel }) {
+  const { t } = useLang();
   const [path, setPath] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -77,7 +80,7 @@ function NewProjectForm({ onCreate, onCancel }) {
 
   return (
     <form className="new-project-form" onSubmit={submit}>
-      <label className="field-label" htmlFor="project-path">Pasta do projeto</label>
+      <label className="field-label" htmlFor="project-path">{t('projectFolder')}</label>
       <div className="path-row">
         <input
           id="project-path"
@@ -88,24 +91,24 @@ function NewProjectForm({ onCreate, onCancel }) {
           autoFocus
         />
         <button type="button" className="ghost-btn" onClick={pick}>
-          Escolher…
+          {t('choose')}
         </button>
       </div>
-      <label className="field-label" htmlFor="project-name">Nome</label>
+      <label className="field-label" htmlFor="project-name">{t('name')}</label>
       <input
         id="project-name"
         className="field-input"
-        placeholder="Usa o nome da pasta"
+        placeholder={t('namePlaceholder')}
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
       {error && <p className="field-error">{error}</p>}
       <div className="form-actions">
         <button type="button" className="ghost-btn" onClick={onCancel}>
-          Cancelar
+          {t('cancel')}
         </button>
         <button type="submit" className="primary-btn" disabled={!path.trim() || busy}>
-          Criar projeto
+          {t('createProject')}
         </button>
       </div>
     </form>
@@ -122,6 +125,7 @@ export default function Sidebar({
   onCreateProject,
   onDeleteProject,
 }) {
+  const { t, lang, toggle: toggleLang } = useLang();
   const [showForm, setShowForm] = useState(false);
   const [collapsed, setCollapsed] = useState({});
 
@@ -147,18 +151,27 @@ export default function Sidebar({
             <i /><i /><i /><i /><i />
           </span>
           LLM Council
+          <button
+            type="button"
+            className="lang-toggle"
+            onClick={toggleLang}
+            title={t('switchLanguage')}
+            aria-label={t('switchLanguage')}
+          >
+            {lang === 'pt' ? 'EN' : 'PT'}
+          </button>
         </h1>
         <button className="new-conversation-btn" onClick={() => onNewConversation(null)}>
-          Nova pergunta
+          {t('newQuestion')}
         </button>
       </div>
 
       <div className="conversation-list">
         <div className="group-heading">
-          <span>Projetos</span>
+          <span>{t('projects')}</span>
           {!showForm && (
             <button type="button" className="text-btn" onClick={() => setShowForm(true)}>
-              Adicionar
+              {t('add')}
             </button>
           )}
         </div>
@@ -175,7 +188,7 @@ export default function Sidebar({
 
         {projects.length === 0 && !showForm && (
           <p className="no-conversations">
-            Adicione a pasta de um projeto para os modelos lerem o código antes de responder.
+            {t('projectsEmpty')}
           </p>
         )}
 
@@ -198,8 +211,8 @@ export default function Sidebar({
                 <button
                   type="button"
                   className="icon-btn project-new-chat"
-                  aria-label={`Novo chat em ${project.name}`}
-                  title="Novo chat neste projeto"
+                  aria-label={t('newChatIn', project.name)}
+                  title={t('newChatInProject')}
                   onClick={() => onNewConversation(project.id)}
                 >
                   <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -209,8 +222,8 @@ export default function Sidebar({
                 <button
                   type="button"
                   className="icon-btn project-delete"
-                  aria-label={`Remover projeto ${project.name}`}
-                  title="Remover projeto"
+                  aria-label={t('removeProjectNamed', project.name)}
+                  title={t('removeProject')}
                   onClick={() => onDeleteProject(project.id)}
                 >
                   <TrashIcon />
@@ -224,7 +237,7 @@ export default function Sidebar({
                       className="empty-project"
                       onClick={() => onNewConversation(project.id)}
                     >
-                      Começar um chat neste projeto
+                      {t('startChatInProject')}
                     </button>
                   ) : (
                     renderList(chats)
@@ -236,10 +249,10 @@ export default function Sidebar({
         })}
 
         <div className="group-heading group-heading-general">
-          <span>Perguntas gerais</span>
+          <span>{t('generalQuestions')}</span>
         </div>
         {general.length === 0 ? (
-          <p className="no-conversations">Suas perguntas aparecem aqui.</p>
+          <p className="no-conversations">{t('noConversations')}</p>
         ) : (
           renderList(general)
         )}

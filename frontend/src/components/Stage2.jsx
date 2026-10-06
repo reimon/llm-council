@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useLang } from '../i18n';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -15,6 +16,7 @@ function deAnonymizeText(text, labelToModel) {
 }
 
 export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState(0);
 
   if (!rankings || rankings.length === 0) {
@@ -25,16 +27,16 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
     <div className="stage stage2">
       <header className="stage-head">
         <span className="stage-num">2</span>
-        <h3 className="stage-title">Os modelos avaliam uns aos outros, às cegas</h3>
+        <h3 className="stage-title">{t('stage2Title')}</h3>
       </header>
       <p className="stage-description">
-        Cada modelo julgou as respostas como Response A, B, C… sem saber quem escreveu cada uma.
-        Os nomes aparecem em <strong>negrito</strong> aqui só para facilitar a leitura.
+        {t('stage2Desc1')}{' '}
+        {t('stage2Desc2a')}<strong>{t('stage2Bold')}</strong>{t('stage2Desc2b')}
       </p>
 
       {aggregateRankings && aggregateRankings.length > 0 && (
         <div className="aggregate-rankings">
-          <h4>Classificação geral</h4>
+          <h4>{t('overallStanding')}</h4>
           <ol className="aggregate-list">
             {aggregateRankings.map((agg, index) => {
               const n = aggregateRankings.length;
@@ -49,18 +51,18 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
                     <span style={{ width: `${Math.max(6, strength * 100)}%` }} />
                   </span>
                   <span className="rank-score">
-                    média {agg.average_rank.toFixed(2)}
-                    <span className="rank-count"> · {agg.rankings_count} votos</span>
+                    {t('avg')} {agg.average_rank.toFixed(2)}
+                    <span className="rank-count"> · {agg.rankings_count} {t('votes')}</span>
                   </span>
                 </li>
               );
             })}
           </ol>
-          <p className="stage-description">Posição média em todos os votos. Quanto menor, melhor.</p>
+          <p className="stage-description">{t('standingNote')}</p>
         </div>
       )}
 
-      <h4>Avaliações individuais</h4>
+      <h4>{t('individualEvaluations')}</h4>
 
       <div className="tabs">
         {rankings.map((rank, index) => (
@@ -87,7 +89,7 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
         {rankings[activeTab].parsed_ranking &&
          rankings[activeTab].parsed_ranking.length > 0 && (
           <div className="parsed-ranking">
-            <strong>Ranking interpretado</strong>
+            <strong>{t('parsedRanking')}</strong>
             <ol>
               {rankings[activeTab].parsed_ranking.map((label, i) => (
                 <li key={i}>

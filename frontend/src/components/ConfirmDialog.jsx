@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
+import { useLang } from '../i18n';
 
 export default function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }) {
+  const { t } = useLang();
   const cancelRef = useRef(null);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, onConfirm,
         <p id="dialog-message">{message}</p>
         <div className="dialog-actions">
           <button ref={cancelRef} type="button" className="dialog-cancel" onClick={onCancel}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button type="button" className="dialog-danger" onClick={onConfirm}>
             {confirmLabel}

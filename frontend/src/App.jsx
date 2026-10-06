@@ -3,9 +3,11 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import ConfirmDialog from './components/ConfirmDialog';
 import { api } from './api';
+import { useLang } from './i18n';
 import './App.css';
 
 function App() {
+  const { t, title: displayTitle } = useLang();
   const [conversations, setConversations] = useState([]);
   const [projects, setProjects] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
@@ -77,11 +79,11 @@ function App() {
 
   const handleDeleteConversation = async (id) => {
     const conv = conversations.find((c) => c.id === id);
-    const title = conv?.title || 'esta conversa';
+    const title = conv?.title ? displayTitle(conv.title) : t('thisConversation');
     setPendingConfirm({
-      title: 'Apagar conversa?',
-      message: `"${title}" será apagada. Isso não pode ser desfeito.`,
-      confirmLabel: 'Apagar conversa',
+      title: t('confirmDeleteConvTitle'),
+      message: t('confirmDeleteConvMsg', title),
+      confirmLabel: t('deleteConversation'),
       onConfirm: () => deleteConversation(id),
     });
   };
@@ -110,11 +112,9 @@ function App() {
     const project = projects.find((p) => p.id === id);
     const count = conversations.filter((c) => c.project_id === id).length;
     setPendingConfirm({
-      title: 'Remover projeto?',
-      message:
-        `"${project?.name}" e ${count === 1 ? 'seu chat serão removidos' : `seus ${count} chats serão removidos`}. ` +
-        'A pasta do projeto no disco não é alterada.',
-      confirmLabel: 'Remover projeto',
+      title: t('confirmRemoveProjectTitle'),
+      message: t('confirmRemoveProjectMsg', project?.name, count),
+      confirmLabel: t('removeProject'),
       onConfirm: () => deleteProject(id),
     });
   };

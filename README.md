@@ -79,9 +79,9 @@ A interface foi redesenhada com o tema de uma sessão de conselho:
 - Foco visível pelo teclado, respeito a quem prefere menos animação e layout em uma coluna em telas estreitas.
 - Os estilos estão concentrados em `frontend/src/index.css`, com tokens de cor no `:root`.
 
-### Interface em português
+### Interface em português e inglês
 
-Todos os textos da interface foram traduzidos para português (pt-BR), incluindo o título padrão de conversas novas ("Nova conversa").
+A interface está em português (pt-BR) e inglês. O botão **EN / PT** ao lado do nome do app troca o idioma na hora, e a escolha fica salva no navegador. Na primeira visita, o idioma segue o do navegador. Os textos ficam em `frontend/src/i18n.jsx`.
 
 ## Como rodar
 

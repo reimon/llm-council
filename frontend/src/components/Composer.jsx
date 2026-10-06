@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { useLang } from '../i18n';
 
 function attachmentLabel(a) {
   if (a.kind === 'link') return a.url.replace(/^https?:\/\//, '');
@@ -8,6 +9,7 @@ function attachmentLabel(a) {
 }
 
 export function AttachmentChip({ attachment, onRemove }) {
+  const { t } = useLang();
   const a = attachment;
   const thumb =
     a.kind === 'image' && a.id
@@ -15,7 +17,7 @@ export function AttachmentChip({ attachment, onRemove }) {
       : a.kind === 'video' && a.frames?.length
         ? api.uploadUrl(a.id, a.frames[0])
         : null;
-  const kindLabel = { image: 'Imagem', video: 'Vídeo', folder: 'Pasta', link: 'Link' }[a.kind];
+  const kindLabel = { image: t('kindImage'), video: t('kindVideo'), folder: t('kindFolder'), link: t('kindLink') }[a.kind];
 
   return (
     <span
@@ -31,7 +33,7 @@ export function AttachmentChip({ attachment, onRemove }) {
         {a.status === 'error' ? `${attachmentLabel(a)}: ${a.error}` : attachmentLabel(a)}
       </span>
       {onRemove && (
-        <button type="button" className="chip-remove" aria-label={`Remover ${attachmentLabel(a)}`} onClick={onRemove}>
+        <button type="button" className="chip-remove" aria-label={t('remove', attachmentLabel(a))} onClick={onRemove}>
           ×
         </button>
       )}
@@ -40,6 +42,7 @@ export function AttachmentChip({ attachment, onRemove }) {
 }
 
 export default function Composer({ onSend, disabled, placeholder }) {
+  const { t } = useLang();
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -159,7 +162,7 @@ export default function Composer({ onSend, disabled, placeholder }) {
           <input
             className="entry-input"
             autoFocus
-            placeholder={entry === 'link' ? 'https://…' : '~/caminho/da/pasta'}
+            placeholder={entry === 'link' ? 'https://…' : t('folderPlaceholder')}
             value={entryValue}
             onChange={(e) => setEntryValue(e.target.value)}
             onKeyDown={(e) => {
@@ -172,14 +175,14 @@ export default function Composer({ onSend, disabled, placeholder }) {
           />
           {entry === 'folder' && (
             <button type="button" className="entry-btn" onClick={pickFolder}>
-              Escolher…
+              {t('choose')}
             </button>
           )}
           <button type="button" className="entry-btn entry-add" onClick={commitEntry} disabled={!entryValue.trim()}>
-            {entry === 'link' ? 'Adicionar link' : 'Adicionar pasta'}
+            {entry === 'link' ? t('addLink') : t('addFolder')}
           </button>
           <button type="button" className="entry-btn" onClick={() => setEntry(null)}>
-            Cancelar
+            {t('cancel')}
           </button>
         </div>
       )}
@@ -189,7 +192,7 @@ export default function Composer({ onSend, disabled, placeholder }) {
           <button
             type="button"
             className="attach-btn"
-            aria-label="Adicionar anexo"
+            aria-label={t('addAttachment')}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
             disabled={disabled}
@@ -208,13 +211,13 @@ export default function Composer({ onSend, disabled, placeholder }) {
                   fileRef.current?.click();
                 }}
               >
-                Imagem ou vídeo
+                {t('imageOrVideo')}
               </button>
               <button type="button" role="menuitem" onClick={() => openEntry('folder')}>
-                Pasta
+                {t('kindFolder')}
               </button>
               <button type="button" role="menuitem" onClick={() => openEntry('link')}>
-                Link
+                {t('kindLink')}
               </button>
             </div>
           )}
@@ -231,10 +234,10 @@ export default function Composer({ onSend, disabled, placeholder }) {
           />
         </div>
         <span className="composer-hint">
-          {uploading ? 'Enviando anexos…' : 'Enter envia, Shift+Enter quebra a linha'}
+          {uploading ? t('uploading') : t('enterHint')}
         </span>
         <button type="submit" className="send-button" disabled={!canSend}>
-          Perguntar ao conselho
+          {t('askCouncil')}
         </button>
       </div>
     </form>

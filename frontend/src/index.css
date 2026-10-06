@@ -430,3 +430,12 @@ button, textarea { font: inherit; color: inherit; }
   .composer-hint { display: none; }
   .composer-bar { justify-content: space-between; }
 }
+
+/* language toggle */
+.brand { justify-content: flex-start; }
+.lang-toggle {
+  margin-left: auto; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.18); background: none; color: #c9cfe3;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+}
+.lang-toggle:hover { background: rgba(255,255,255,0.08); color: #fff; }

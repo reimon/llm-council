@@ -4,6 +4,7 @@ import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import Composer, { AttachmentChip } from './Composer';
+import { useLang } from '../i18n';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -11,6 +12,7 @@ export default function ChatInterface({
   onSendMessage,
   isLoading,
 }) {
+  const { t } = useLang();
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -25,9 +27,9 @@ export default function ChatInterface({
     return (
       <div className="chat-interface">
         <div className="empty-state">
-          <h2>Leve uma pergunta ao conselho</h2>
-          <p>Vários modelos respondem, avaliam uns aos outros de forma anônima e um presidente redige a resposta final.</p>
-          <p className="empty-hint">Comece em “Nova pergunta”, à esquerda.</p>
+          <h2>{t('welcomeTitle')}</h2>
+          <p>{t('welcomeBody')}</p>
+          <p className="empty-hint">{t('welcomeHint')}</p>
         </div>
       </div>
     );
@@ -47,15 +49,12 @@ export default function ChatInterface({
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
             <h2>
-              {project ? `O que você quer saber sobre ${project.name}?` : 'Sobre o que o conselho deve opinar?'}
+              {project ? t('askAbout', project.name) : t('askGeneral')}
             </h2>
             {project ? (
-              <p>
-                Cada modelo vai ler os arquivos do projeto antes de responder, sem alterar nada.
-                Com código para explorar, a deliberação pode levar vários minutos.
-              </p>
+              <p>{t('projectNote')}</p>
             ) : (
-              <p>Faça uma pergunta. A deliberação completa leva um ou dois minutos.</p>
+              <p>{t('generalNote')}</p>
             )}
           </div>
         ) : (
@@ -63,7 +62,7 @@ export default function ChatInterface({
             <div key={index} className="message-group">
               {msg.role === 'user' ? (
                 <div className="user-message">
-                  <div className="message-label">Sua pergunta</div>
+                  <div className="message-label">{t('yourQuestion')}</div>
                   <div className="message-content">
                     <div className="markdown-content">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -84,7 +83,7 @@ export default function ChatInterface({
                   {msg.loading?.stage1 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Os modelos estão escrevendo suas respostas…</span>
+                      <span>{t('loadingStage1')}</span>
                     </div>
                   )}
                   {msg.stage1 && <Stage1 responses={msg.stage1} />}
@@ -93,7 +92,7 @@ export default function ChatInterface({
                   {msg.loading?.stage2 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>Os modelos estão avaliando uns aos outros…</span>
+                      <span>{t('loadingStage2')}</span>
                     </div>
                   )}
                   {msg.stage2 && (
@@ -108,7 +107,7 @@ export default function ChatInterface({
                   {msg.loading?.stage3 && (
                     <div className="stage-loading">
                       <div className="spinner"></div>
-                      <span>O presidente está redigindo a resposta final…</span>
+                      <span>{t('loadingStage3')}</span>
                     </div>
                   )}
                   {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
@@ -121,7 +120,7 @@ export default function ChatInterface({
         {isLoading && (
           <div className="loading-indicator">
             <div className="spinner"></div>
-            <span>Reunindo o conselho…</span>
+            <span>{t('convening')}</span>
           </div>
         )}
 
@@ -134,8 +133,8 @@ export default function ChatInterface({
           disabled={isLoading}
           placeholder={
             project
-              ? `Pergunte sobre ${project.name}. Use + para anexar imagens, vídeos, pastas ou links.`
-              : 'Escreva sua pergunta. Use + para anexar imagens, vídeos, pastas ou links.'
+              ? t('placeholderProject', project.name)
+              : t('placeholderGeneral')
           }
         />
       )}
