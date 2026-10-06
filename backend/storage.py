@@ -164,7 +164,7 @@ def delete_conversation(conversation_id: str) -> bool:
     return True
 
 
-def add_user_message(conversation_id: str, content: str):
+def add_user_message(conversation_id: str, content: str, attachments: Optional[List[Dict[str, Any]]] = None):
     """
     Add a user message to a conversation.
 
@@ -178,7 +178,8 @@ def add_user_message(conversation_id: str, content: str):
 
     conversation["messages"].append({
         "role": "user",
-        "content": content
+        "content": content,
+        "attachments": attachments or []
     })
 
     save_conversation(conversation)

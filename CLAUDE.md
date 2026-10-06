@@ -46,6 +46,10 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - The title task is created before the contextvar is set, so titles stay a plain call
 - `/api/pick-folder` opens the macOS folder picker via `osascript`
 
+**Attachments** (`attachments.py`)
+- `POST /api/uploads?name=` takes the raw file body (no multipart dependency); videos get 6 frames via ffmpeg
+- `build_context()` appends folder paths and fetched link text to the question and returns image paths; the API puts those in the `attached_images` contextvar, which `codex_client` turns into `--image=` flags (use the `=` form: `-i` is variadic and would swallow the `-` stdin prompt)
+
 **`main.py`**
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
 - POST `/api/conversations/{id}/message` returns metadata in addition to stages

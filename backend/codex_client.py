@@ -11,6 +11,9 @@ from .config import CODEX_BIN
 # Set by the API around the council stages; asyncio tasks inherit it.
 project_dir: contextvars.ContextVar = contextvars.ContextVar("project_dir", default=None)
 
+# Image files attached to the current question (uploaded images and video frames).
+attached_images: contextvars.ContextVar = contextvars.ContextVar("attached_images", default=())
+
 PROJECT_PREAMBLE = (
     "You are answering a question about the software project in your current working directory: {path}\n"
     "You have read-only access. Explore and read the relevant files before answering, "
@@ -49,6 +52,8 @@ async def query_model(
     ]
     if model and model != "default":
         args += ["-m", model]
+    for image in attached_images.get():
+        args.append(f"--image={image}")
     args.append("-")  # read prompt from stdin
 
     try:

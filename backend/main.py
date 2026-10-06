@@ -1,6 +1,7 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -13,7 +14,8 @@ import asyncio
 
 from . import storage
 from .config import LLM_PROVIDER
-from .codex_client import project_dir
+from .codex_client import project_dir, attached_images
+from . import attachments as attachments_mod
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -42,6 +44,7 @@ class CreateProjectRequest(BaseModel):
 class SendMessageRequest(BaseModel):
     """Request to send a message in a conversation."""
     content: str
+    attachments: List[Dict[str, Any]] = []
 
 
 class ConversationMetadata(BaseModel):
@@ -110,6 +113,32 @@ async def delete_project(project_id: str):
     return {"status": "deleted"}
 
 
+@app.post("/api/uploads")
+async def upload_file(request: Request, name: str):
+    """Upload an image or video as the raw request body."""
+    data = await request.body()
+    if not data:
+        raise HTTPException(status_code=400, detail="Arquivo vazio")
+    try:
+        return await attachments_mod.save_upload(name, data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falha ao processar o arquivo: {e}")
+
+
+@app.get("/api/uploads/{upload_id}/{filename}")
+async def get_upload(upload_id: str, filename: str):
+    """Serve an uploaded file (used for thumbnails)."""
+    try:
+        path = os.path.join(attachments_mod.upload_dir(upload_id), os.path.basename(filename))
+    except ValueError:
+        raise HTTPException(status_code=404)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404)
+    return FileResponse(path)
+
+
 @app.post("/api/pick-folder")
 async def pick_folder():
     """Open the native macOS folder picker and return the chosen path."""
@@ -168,7 +197,7 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
     is_first_message = len(conversation["messages"]) == 0
 
     # Add user message
-    storage.add_user_message(conversation_id, request.content)
+    storage.add_user_message(conversation_id, request.content, request.attachments)
 
     # If this is the first message, generate a title
     if is_first_message:
@@ -180,10 +209,11 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
     if project and LLM_PROVIDER == "codex":
         project_dir.set(project["path"])
 
+    query, images = await attachments_mod.build_context(request.content, request.attachments)
+    attached_images.set(tuple(images))
+
     # Run the 3-stage council process
-    stage1_results, stage2_results, stage3_result, metadata = await run_full_council(
-        request.content
-    )
+    stage1_results, stage2_results, stage3_result, metadata = await run_full_council(query)
 
     # Add assistant message with all stages
     storage.add_assistant_message(
@@ -220,7 +250,7 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
     async def event_generator():
         try:
             # Add user message
-            storage.add_user_message(conversation_id, request.content)
+            storage.add_user_message(conversation_id, request.content, request.attachments)
 
             # Start title generation in parallel (don't await yet)
             title_task = None
@@ -233,20 +263,24 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             if project and LLM_PROVIDER == "codex":
                 project_dir.set(project["path"])
 
+            # Fold attachments into the question; images go to the models as files
+            query, images = await attachments_mod.build_context(request.content, request.attachments)
+            attached_images.set(tuple(images))
+
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
-            stage1_results = await stage1_collect_responses(request.content)
+            stage1_results = await stage1_collect_responses(query)
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
             # Stage 2: Collect rankings
             yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
-            stage2_results, label_to_model = await stage2_collect_rankings(request.content, stage1_results)
+            stage2_results, label_to_model = await stage2_collect_rankings(query, stage1_results)
             aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
             yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}})}\n\n"
 
             # Stage 3: Synthesize final answer
             yield f"data: {json.dumps({'type': 'stage3_start'})}\n\n"
-            stage3_result = await stage3_synthesize_final(request.content, stage1_results, stage2_results)
+            stage3_result = await stage3_synthesize_final(query, stage1_results, stage2_results)
             yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
             # Wait for title generation if it was started

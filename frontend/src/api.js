@@ -96,6 +96,28 @@ export const api = {
   },
 
   /**
+   * Upload an image or video. Resolves to the stored attachment.
+   */
+  async uploadFile(file) {
+    const response = await fetch(
+      `${API_BASE}/api/uploads?name=${encodeURIComponent(file.name)}`,
+      { method: 'POST', body: file }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || 'Falha no envio');
+    }
+    return data;
+  },
+
+  /**
+   * URL of an uploaded file (for thumbnails).
+   */
+  uploadUrl(uploadId, filename) {
+    return `${API_BASE}/api/uploads/${uploadId}/${encodeURIComponent(filename)}`;
+  },
+
+  /**
    * Delete a conversation.
    */
   async deleteConversation(conversationId) {
@@ -136,7 +158,7 @@ export const api = {
    * @param {function} onEvent - Callback function for each event: (eventType, data) => void
    * @returns {Promise<void>}
    */
-  async sendMessageStream(conversationId, content, onEvent) {
+  async sendMessageStream(conversationId, content, attachments, onEvent) {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/stream`,
       {
@@ -144,7 +166,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, attachments }),
       }
     );
 

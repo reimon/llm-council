@@ -51,6 +51,17 @@ Você pode cadastrar a pasta de um projeto e abrir vários chats dentro dele. Ne
 
 Os projetos ficam em `data/projects.json`, e cada conversa guarda o seu `project_id`. Isso funciona só com `LLM_PROVIDER=codex`, porque a OpenRouter não tem acesso a arquivos.
 
+### Anexos: imagens, vídeos, pastas e links
+
+O botão **+** no campo de pergunta abre o menu de anexos. Também dá para arrastar arquivos para o campo ou colar uma imagem.
+
+- **Imagem:** vai direto para os modelos (`codex exec --image`).
+- **Vídeo:** o Codex não lê vídeo, então o backend extrai 6 quadros em intervalos iguais com `ffmpeg` e envia como imagens, explicando que são quadros em ordem. Requer `ffmpeg` instalado.
+- **Pasta:** os modelos recebem o caminho e podem ler os arquivos em modo somente leitura. O botão **Escolher…** abre o seletor do macOS.
+- **Link:** o backend baixa a página, extrai o texto (até 20 mil caracteres) e o junta à pergunta.
+
+Os anexos valem para as três etapas, assim quem avalia vê o mesmo material de quem respondeu. Os arquivos enviados ficam em `data/uploads/`, e a pergunta salva mostra os anexos usados.
+
 ### Novo design
 
 ![Tela do app com uma pergunta respondida pelo conselho](docs/screenshot.png)

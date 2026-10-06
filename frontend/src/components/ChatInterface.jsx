@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import Composer, { AttachmentChip } from './Composer';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -10,7 +11,6 @@ export default function ChatInterface({
   onSendMessage,
   isLoading,
 }) {
-  const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -20,22 +20,6 @@ export default function ChatInterface({
   useEffect(() => {
     scrollToBottom();
   }, [conversation]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (input.trim() && !isLoading) {
-      onSendMessage(input);
-      setInput('');
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    // Submit on Enter (without Shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
 
   if (!conversation) {
     return (
@@ -85,6 +69,13 @@ export default function ChatInterface({
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   </div>
+                  {msg.attachments?.length > 0 && (
+                    <div className="chip-row chip-row-sent">
+                      {msg.attachments.map((att, i) => (
+                        <AttachmentChip key={i} attachment={att} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="assistant-message">
@@ -138,24 +129,15 @@ export default function ChatInterface({
       </div>
 
       {conversation.messages.length === 0 && (
-        <form className="input-form" onSubmit={handleSubmit}>
-          <textarea
-            className="message-input"
-            placeholder="Escreva sua pergunta. Enter envia, Shift+Enter quebra a linha."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            rows={3}
-          />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!input.trim() || isLoading}
-          >
-            Perguntar ao conselho
-          </button>
-        </form>
+        <Composer
+          onSend={onSendMessage}
+          disabled={isLoading}
+          placeholder={
+            project
+              ? `Pergunte sobre ${project.name}. Use + para anexar imagens, vídeos, pastas ou links.`
+              : 'Escreva sua pergunta. Use + para anexar imagens, vídeos, pastas ou links.'
+          }
+        />
       )}
     </div>
   );
