@@ -820,3 +820,24 @@ button, textarea { font: inherit; color: inherit; }
 .room-head .room-title { flex: 1 1 360px; min-width: 280px; }
 .room-actions { flex-wrap: wrap; justify-content: flex-end; }
 .room-status { flex-basis: 100%; text-align: right; order: 10; }
+
+/* auto-configuration report */
+.auto-report {
+  margin: 10px 32px 0; padding: 14px 16px; border-radius: 12px; color: #e6e9f5;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14);
+}
+.auto-report.ok { border-color: rgba(63,207,142,0.5); }
+.auto-report.fail { border-color: rgba(239,100,97,0.6); }
+.auto-report header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.auto-report .icon-close { background: rgba(255,255,255,0.08); color: #dfe3f0; }
+.auto-report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.auto-report h4 { font-size: 13px; color: #aab2cf; margin-bottom: 6px; }
+.auto-report ul { list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.auto-report li { overflow-wrap: anywhere; }
+.auto-report li.good::before { content: "✓ "; color: #3fcf8e; font-weight: 700; }
+.auto-report li.bad::before { content: "✗ "; color: #ef6461; font-weight: 700; }
+.auto-report code {
+  display: block; margin: 4px 0 2px 16px; padding: 6px 8px; border-radius: 6px;
+  background: rgba(0,0,0,0.3); font-family: var(--mono); font-size: 11.5px; color: #ffcdc9; white-space: pre-wrap;
+}
+@media (max-width: 760px) { .auto-report { margin: 10px 16px 0; } }

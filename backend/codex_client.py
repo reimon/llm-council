@@ -81,6 +81,8 @@ async def query_model(
         return {'content': content, 'reasoning_details': None}
 
     except Exception as e:
+        from .providers import LAST_ERRORS
+        LAST_ERRORS[f"codex:{model}"] = str(e) or e.__class__.__name__
         print(f"Error querying codex model {model}: {e}")
         return None
     finally:

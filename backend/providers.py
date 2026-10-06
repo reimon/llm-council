@@ -11,6 +11,15 @@ from . import codex_client
 from .platform_utils import resolve_bin, MAX_ARG_CHARS
 from .codex_client import project_dir, attached_images, PROJECT_PREAMBLE, _messages_to_prompt
 
+# Last failure message per "provider:model", shown by the auto-configuration report.
+LAST_ERRORS: Dict[str, str] = {}
+
+
+def _fail(label: str, message: str):
+    LAST_ERRORS[label] = message
+    print(f"Error querying {label}: {message}")
+
+
 # Folders attached to the current question; CLIs that sandbox file reads need them allowed.
 extra_dirs: contextvars.ContextVar = contextvars.ContextVar("extra_dirs", default=())
 
@@ -102,7 +111,7 @@ async def _run_cli(
             raise RuntimeError("empty output: " + (err.decode(errors="ignore").strip()[-300:] or "no details"))
         return {"reasoning_details": None, **parsed}
     except Exception as e:
-        print(f"Error querying {label}: {e}")
+        _fail(label, str(e) or e.__class__.__name__)
         return None
 
 
@@ -158,7 +167,7 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
         from .council_config import gemini_cli_logged_in
         if not gemini_cli_logged_in():
             # Without a login the CLI opens a browser auth page and waits; fail fast instead
-            print("Error querying gemini: no API key (put GEMINI_API_KEY in ~/.gemini/.env)")
+            _fail(f"gemini:{model}", "no API key (put GEMINI_API_KEY in ~/.gemini/.env)")
             return None
         # Gemini CLI: prompt on stdin, "plan" approval mode is its read-only mode (enforced by the CLI)
         args = [resolve_bin("gemini"), "-p", "Answer the request above.", "--approval-mode", "plan",
@@ -169,5 +178,5 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
             args += ["--include-directories", d]
         return await _run_cli(args, _cli_prompt(messages), timeout, f"gemini:{model}")
 
-    print(f"Unknown provider: {provider}")
+    _fail(f"{provider}:{model}", "unknown provider")
     return None

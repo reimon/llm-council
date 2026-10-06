@@ -453,17 +453,20 @@ export default function CouncilRoom({ onClose }) {
   };
 
   const [autoRunning, setAutoRunning] = useState(false);
+  const [autoReport, setAutoReport] = useState(null);
   const runAutoconfigure = async () => {
     if (dirty && !(await save())) return;
     setAutoRunning(true);
     setStatus(t('autoRunning'));
     try {
       const result = await api.autoconfigureCouncil();
+      setAutoReport(result);
       setStatus(result.message);
       const s = await refreshStore();
       await openCouncil(result.ok ? result.council.id : s.default_id);
       if (result.ok) setStatus(result.message);
     } catch (err) {
+      setAutoReport({ ok: false, message: t('autoUnreachable'), providers: [], tested: [] });
       setStatus(err.message);
     } finally {
       setAutoRunning(false);
@@ -549,6 +552,42 @@ export default function CouncilRoom({ onClose }) {
           onDelete={deleteCouncil}
           onMakeDefault={makeDefault}
         />
+      )}
+
+      {autoReport && (
+        <section className={`auto-report ${autoReport.ok ? 'ok' : 'fail'}`} aria-live="polite">
+          <header>
+            <strong>{autoReport.message}</strong>
+            <button type="button" className="icon-close" onClick={() => setAutoReport(null)} aria-label={t('close')}>
+              ×
+            </button>
+          </header>
+          <div className="auto-report-grid">
+            <div>
+              <h4>{t('autoFound')}</h4>
+              <ul>
+                {(autoReport.providers || []).map((p) => (
+                  <li key={p.id} className={p.installed && !p.needs_login ? 'good' : 'bad'}>
+                    <b>{p.label}</b>{' '}
+                    {!p.installed ? t('notInstalled') : p.needs_login ? t('needsLogin') : t('autoFoundAt', p.path, p.models)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4>{t('autoTested')}</h4>
+              {(autoReport.tested || []).length === 0 && <p>{t('autoNothingTested')}</p>}
+              <ul>
+                {(autoReport.tested || []).map((r) => (
+                  <li key={`${r.provider}:${r.model}`} className={r.ok ? 'good' : 'bad'}>
+                    <b>{r.provider}:{r.model}</b> {r.ok ? t('testOk', r.seconds) : t('autoFailed', r.seconds)}
+                    {!r.ok && r.error && <code>{r.error}</code>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
       )}
 
       <div className="room-body">

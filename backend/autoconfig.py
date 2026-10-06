@@ -13,7 +13,8 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from . import council_config
-from .providers import query_member
+from .providers import query_member, LAST_ERRORS
+from .platform_utils import find_bin
 
 AUTO_COUNCIL_NAME = "Conselho automático"
 TEST_PROMPT = [{"role": "user", "content": "Reply with exactly: ok"}]
@@ -66,16 +67,25 @@ def _candidates(providers: List[Dict[str, Any]]) -> List[Dict[str, str]]:
 
 async def _test(seat: Dict[str, str]) -> Dict[str, Any]:
     start = time.time()
-    response = await query_member(seat, TEST_PROMPT, timeout=180.0)
-    return {**seat, "ok": bool(response and response.get("content")), "seconds": round(time.time() - start, 1)}
+    label = f"{seat['provider']}:{seat['model']}"
+    LAST_ERRORS.pop(label, None)
+    try:
+        response = await query_member(seat, TEST_PROMPT, timeout=180.0)
+    except Exception as e:  # never let one provider break the whole report
+        LAST_ERRORS[label] = f"{e.__class__.__name__}: {e}"
+        response = None
+    ok = bool(response and response.get("content"))
+    return {**seat, "ok": ok, "seconds": round(time.time() - start, 1),
+            "error": None if ok else (LAST_ERRORS.get(label) or "sem resposta")[-400:]}
 
 
 async def autoconfigure(log=print) -> Dict[str, Any]:
     """Build and save the automatic council. Returns a report of what was found and tested."""
     providers = await asyncio.to_thread(council_config.list_providers)
     for p in providers:
-        state = "não instalado" if not p["installed"] else ("precisa de chave/login" if p.get("needs_login") else "instalado")
-        log(f"- {p['label']}: {state}")
+        p["path"] = find_bin(council_config.PROVIDERS[p["id"]]["bin"])
+        state = "não instalado" if not p["installed"] else ("precisa de chave/login" if p.get("needs_login") else f"instalado em {p['path']}")
+        log(f"- {p['label']}: {state} ({len(p['models'])} modelos)")
 
     seats = _candidates(providers)
     if not seats:
@@ -84,7 +94,8 @@ async def autoconfigure(log=print) -> Dict[str, Any]:
     log(f"Testando {len(seats)} modelo(s), isso leva até alguns minutos...")
     tested = await asyncio.gather(*[_test(s) for s in seats])
     for t in tested:
-        log(f"  {'OK ' if t['ok'] else 'FALHOU'} {t['provider']}:{t['model']} ({t['seconds']}s)")
+        log(f"  {'OK ' if t['ok'] else 'FALHOU'} {t['provider']}:{t['model']} ({t['seconds']}s)"
+            + ("" if t["ok"] else f"\n      motivo: {t['error']}"))
 
     working = [t for t in tested if t["ok"]]
     if not working:

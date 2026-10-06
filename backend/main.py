@@ -260,7 +260,11 @@ async def autoconfigure_council():
     """Detect installed AI apps, test them and save a council built from the ones that answer."""
     from .autoconfig import autoconfigure
     result = await autoconfigure(log=lambda _msg: None)
-    return {k: v for k, v in result.items() if k != "providers"}
+    result["providers"] = [
+        {k: p.get(k) for k in ("id", "label", "installed", "needs_login", "path")} | {"models": len(p.get("models", []))}
+        for p in result.get("providers", [])
+    ]
+    return result
 
 
 @app.post("/api/council/test")
