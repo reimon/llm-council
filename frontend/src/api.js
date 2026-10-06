@@ -19,13 +19,13 @@ export const api = {
   /**
    * Create a new conversation.
    */
-  async createConversation() {
+  async createConversation(projectId = null) {
     const response = await fetch(`${API_BASE}/api/conversations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ project_id: projectId }),
     });
     if (!response.ok) {
       throw new Error('Failed to create conversation');
@@ -44,6 +44,55 @@ export const api = {
       throw new Error('Failed to get conversation');
     }
     return response.json();
+  },
+
+  /**
+   * List all projects.
+   */
+  async listProjects() {
+    const response = await fetch(`${API_BASE}/api/projects`);
+    if (!response.ok) {
+      throw new Error('Failed to list projects');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a project from a local folder path.
+   */
+  async createProject(name, path) {
+    const response = await fetch(`${API_BASE}/api/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, path }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || 'Failed to create project');
+    }
+    return data;
+  },
+
+  /**
+   * Delete a project and its conversations.
+   */
+  async deleteProject(projectId) {
+    const response = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete project');
+    }
+    return response.json();
+  },
+
+  /**
+   * Open the native folder picker (macOS). Resolves to a path or null.
+   */
+  async pickFolder() {
+    const response = await fetch(`${API_BASE}/api/pick-folder`, { method: 'POST' });
+    if (!response.ok) return null;
+    return (await response.json()).path;
   },
 
   /**

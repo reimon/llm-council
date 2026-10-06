@@ -38,6 +38,19 @@ LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
+### Perguntas sobre os seus projetos
+
+Você pode cadastrar a pasta de um projeto e abrir vários chats dentro dele. Nesses chats, cada modelo do conselho lê os arquivos do projeto antes de responder.
+
+- Na barra lateral, em **Projetos → Adicionar**, digite o caminho da pasta ou use **Escolher…**, que abre o seletor de pastas do macOS.
+- Os chats ficam agrupados por projeto. O **+** ao lado do nome abre um chat novo naquele projeto.
+- Nas três etapas, o Codex roda dentro da pasta do projeto (`-C <pasta>`) em modo **somente leitura**, então nada no projeto é alterado.
+- Explorar código leva mais tempo: o limite por consulta sobe para 15 minutos nesses chats.
+- Remover um projeto apaga os chats dele no LLM Council, mas não mexe na pasta do projeto.
+- **Perguntas gerais**, fora de projetos, continuam funcionando como antes.
+
+Os projetos ficam em `data/projects.json`, e cada conversa guarda o seu `project_id`. Isso funciona só com `LLM_PROVIDER=codex`, porque a OpenRouter não tem acesso a arquivos.
+
 ### Novo design
 
 ![Tela do app com uma pergunta respondida pelo conselho](docs/screenshot.png)

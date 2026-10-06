@@ -49,13 +49,30 @@ export default function ChatInterface({
     );
   }
 
+  const project = conversation.project;
+
   return (
     <div className="chat-interface">
+      {project && (
+        <div className="project-banner" title={project.path}>
+          <span className="project-banner-name">{project.name}</span>
+          <span className="project-banner-path">{project.path}</span>
+        </div>
+      )}
       <div className="messages-container">
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
-            <h2>Sobre o que o conselho deve opinar?</h2>
-            <p>Faça uma pergunta. A deliberação completa leva um ou dois minutos.</p>
+            <h2>
+              {project ? `O que você quer saber sobre ${project.name}?` : 'Sobre o que o conselho deve opinar?'}
+            </h2>
+            {project ? (
+              <p>
+                Cada modelo vai ler os arquivos do projeto antes de responder, sem alterar nada.
+                Com código para explorar, a deliberação pode levar vários minutos.
+              </p>
+            ) : (
+              <p>Faça uma pergunta. A deliberação completa leva um ou dois minutos.</p>
+            )}
           </div>
         ) : (
           conversation.messages.map((msg, index) => (

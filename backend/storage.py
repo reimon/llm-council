@@ -18,12 +18,58 @@ def get_conversation_path(conversation_id: str) -> str:
     return os.path.join(DATA_DIR, f"{conversation_id}.json")
 
 
-def create_conversation(conversation_id: str) -> Dict[str, Any]:
+PROJECTS_PATH = os.path.join(os.path.dirname(DATA_DIR), "projects.json")
+
+
+def list_projects() -> List[Dict[str, Any]]:
+    """List all projects, oldest first."""
+    if not os.path.exists(PROJECTS_PATH):
+        return []
+    with open(PROJECTS_PATH) as f:
+        return json.load(f)
+
+
+def _save_projects(projects: List[Dict[str, Any]]):
+    Path(PROJECTS_PATH).parent.mkdir(parents=True, exist_ok=True)
+    with open(PROJECTS_PATH, "w") as f:
+        json.dump(projects, f, indent=2)
+
+
+def get_project(project_id: str) -> Optional[Dict[str, Any]]:
+    return next((p for p in list_projects() if p["id"] == project_id), None)
+
+
+def create_project(project_id: str, name: str, path: str) -> Dict[str, Any]:
+    """Create a project pointing at a local folder."""
+    project = {
+        "id": project_id,
+        "name": name,
+        "path": path,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    _save_projects(list_projects() + [project])
+    return project
+
+
+def delete_project(project_id: str) -> bool:
+    """Delete a project and all of its conversations."""
+    projects = list_projects()
+    if not any(p["id"] == project_id for p in projects):
+        return False
+    _save_projects([p for p in projects if p["id"] != project_id])
+    for conv in list_conversations():
+        if conv.get("project_id") == project_id:
+            delete_conversation(conv["id"])
+    return True
+
+
+def create_conversation(conversation_id: str, project_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a new conversation.
 
     Args:
         conversation_id: Unique identifier for the conversation
+        project_id: Project this conversation belongs to, or None for a general question
 
     Returns:
         New conversation dict
@@ -34,6 +80,7 @@ def create_conversation(conversation_id: str) -> Dict[str, Any]:
         "id": conversation_id,
         "created_at": datetime.utcnow().isoformat(),
         "title": "Nova conversa",
+        "project_id": project_id,
         "messages": []
     }
 
@@ -98,7 +145,8 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "id": data["id"],
                     "created_at": data["created_at"],
                     "title": data.get("title", "Nova conversa"),
-                    "message_count": len(data["messages"])
+                    "message_count": len(data["messages"]),
+                    "project_id": data.get("project_id")
                 })
 
     # Sort by creation time, newest first

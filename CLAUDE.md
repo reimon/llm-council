@@ -40,6 +40,12 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Assistant messages contain: `{role, stage1, stage2, stage3}`
 - Metadata (label_to_model, aggregate_rankings) is persisted on each assistant message
 
+**Projects** (`storage.py`, `main.py`, `codex_client.py`)
+- Projects (`{id, name, path}`) live in `data/projects.json`; conversations carry `project_id`
+- For project chats the API sets the `project_dir` contextvar in `codex_client.py`, so every Codex call in Stages 1-3 runs with `-C <path>` (read-only sandbox) plus a preamble telling the model to read the code; timeout rises to 900s
+- The title task is created before the contextvar is set, so titles stay a plain call
+- `/api/pick-folder` opens the macOS folder picker via `osascript`
+
 **`main.py`**
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
 - POST `/api/conversations/{id}/message` returns metadata in addition to stages

@@ -6,6 +6,7 @@ import './App.css';
 
 function App() {
   const [conversations, setConversations] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +14,7 @@ function App() {
   // Load conversations on mount
   useEffect(() => {
     loadConversations();
+    loadProjects();
   }, []);
 
   // Load conversation details when selected
@@ -31,6 +33,14 @@ function App() {
     }
   };
 
+  const loadProjects = async () => {
+    try {
+      setProjects(await api.listProjects());
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    }
+  };
+
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
@@ -40,11 +50,16 @@ function App() {
     }
   };
 
-  const handleNewConversation = async () => {
+  const handleNewConversation = async (projectId = null) => {
     try {
-      const newConv = await api.createConversation();
+      const newConv = await api.createConversation(projectId);
       setConversations([
-        { id: newConv.id, created_at: newConv.created_at, message_count: 0 },
+        {
+          id: newConv.id,
+          created_at: newConv.created_at,
+          message_count: 0,
+          project_id: newConv.project_id,
+        },
         ...conversations,
       ]);
       setCurrentConversationId(newConv.id);
@@ -70,6 +85,33 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error);
+    }
+  };
+
+  const handleCreateProject = async (name, path) => {
+    const project = await api.createProject(name, path);
+    setProjects((prev) => [...prev, project]);
+    await handleNewConversation(project.id);
+    return project;
+  };
+
+  const handleDeleteProject = async (id) => {
+    const project = projects.find((p) => p.id === id);
+    const count = conversations.filter((c) => c.project_id === id).length;
+    const msg =
+      `Remover o projeto "${project?.name}" e ${count === 1 ? 'seu chat' : `seus ${count} chats`}? ` +
+      'A pasta do projeto no disco não é tocada.';
+    if (!window.confirm(msg)) return;
+    try {
+      await api.deleteProject(id);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      setConversations((prev) => prev.filter((c) => c.project_id !== id));
+      if (currentConversation?.project_id === id) {
+        setCurrentConversationId(null);
+        setCurrentConversation(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
@@ -205,6 +247,9 @@ function App() {
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
+        projects={projects}
+        onCreateProject={handleCreateProject}
+        onDeleteProject={handleDeleteProject}
       />
       <ChatInterface
         conversation={currentConversation}

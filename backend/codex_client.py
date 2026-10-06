@@ -1,10 +1,21 @@
 """Codex CLI client: queries models through the locally installed `codex` (uses your ChatGPT login, no API key)."""
 
 import asyncio
+import contextvars
 import os
 import tempfile
 from typing import List, Dict, Any, Optional
 from .config import CODEX_BIN
+
+# Folder of the project the current question is about (None = general question).
+# Set by the API around the council stages; asyncio tasks inherit it.
+project_dir: contextvars.ContextVar = contextvars.ContextVar("project_dir", default=None)
+
+PROJECT_PREAMBLE = (
+    "You are answering a question about the software project in your current working directory: {path}\n"
+    "You have read-only access. Explore and read the relevant files before answering, "
+    "and ground your answer in what the code actually does. Do not modify anything.\n\n"
+)
 
 
 def _messages_to_prompt(messages: List[Dict[str, str]]) -> str:
@@ -20,6 +31,10 @@ async def query_model(
 ) -> Optional[Dict[str, Any]]:
     """Query a single model via `codex exec`. Returns {'content': ...} or None on failure."""
     prompt = _messages_to_prompt(messages)
+    workdir = project_dir.get()
+    if workdir:
+        prompt = PROJECT_PREAMBLE.format(path=workdir) + prompt
+        timeout = max(timeout, 900.0)  # exploring a codebase takes a while
     fd, out_path = tempfile.mkstemp(suffix=".txt")
     os.close(fd)
 
@@ -29,7 +44,7 @@ async def query_model(
         "--ephemeral",
         "--sandbox", "read-only",
         "--color", "never",
-        "-C", tempfile.gettempdir(),
+        "-C", workdir or tempfile.gettempdir(),
         "-o", out_path,
     ]
     if model and model != "default":

@@ -4,12 +4,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+import os
+import subprocess
 import uuid
 import json
 import asyncio
 
 from . import storage
+from .config import LLM_PROVIDER
+from .codex_client import project_dir
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -26,7 +30,13 @@ app.add_middleware(
 
 class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
-    pass
+    project_id: Optional[str] = None
+
+
+class CreateProjectRequest(BaseModel):
+    """Request to create a project pointing at a local folder."""
+    name: str = ""
+    path: str
 
 
 class SendMessageRequest(BaseModel):
@@ -40,6 +50,7 @@ class ConversationMetadata(BaseModel):
     created_at: str
     title: str
     message_count: int
+    project_id: Optional[str] = None
 
 
 class Conversation(BaseModel):
@@ -48,6 +59,8 @@ class Conversation(BaseModel):
     created_at: str
     title: str
     messages: List[Dict[str, Any]]
+    project_id: Optional[str] = None
+    project: Optional[Dict[str, Any]] = None
 
 
 @app.get("/")
@@ -65,9 +78,48 @@ async def list_conversations():
 @app.post("/api/conversations", response_model=Conversation)
 async def create_conversation(request: CreateConversationRequest):
     """Create a new conversation."""
+    if request.project_id and not storage.get_project(request.project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
     conversation_id = str(uuid.uuid4())
-    conversation = storage.create_conversation(conversation_id)
+    conversation = storage.create_conversation(conversation_id, request.project_id)
+    conversation["project"] = storage.get_project(request.project_id) if request.project_id else None
     return conversation
+
+
+@app.get("/api/projects")
+async def list_projects():
+    """List all projects."""
+    return storage.list_projects()
+
+
+@app.post("/api/projects")
+async def create_project(request: CreateProjectRequest):
+    """Create a project from a local folder path."""
+    path = os.path.realpath(os.path.expanduser(request.path.strip()))
+    if not os.path.isdir(path):
+        raise HTTPException(status_code=400, detail=f"A pasta não existe: {path}")
+    name = request.name.strip() or os.path.basename(path)
+    return storage.create_project(str(uuid.uuid4()), name, path)
+
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: str):
+    """Delete a project and its conversations (the project folder itself is untouched)."""
+    if not storage.delete_project(project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"status": "deleted"}
+
+
+@app.post("/api/pick-folder")
+async def pick_folder():
+    """Open the native macOS folder picker and return the chosen path."""
+    script = 'POSIX path of (choose folder with prompt "Escolha a pasta do projeto")'
+    proc = await asyncio.to_thread(
+        subprocess.run, ["osascript", "-e", script], capture_output=True, text=True
+    )
+    if proc.returncode != 0:
+        return {"path": None}  # user cancelled or picker unavailable
+    return {"path": proc.stdout.strip().rstrip("/") or "/"}
 
 
 @app.get("/api/conversations/{conversation_id}", response_model=Conversation)
@@ -76,6 +128,8 @@ async def get_conversation(conversation_id: str):
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    pid = conversation.get("project_id")
+    conversation["project"] = storage.get_project(pid) if pid else None
 
     # Older conversations were saved without ranking metadata; rebuild it.
     # Labels are assigned in Stage 1 order (Response A = first model), so this is exact.
@@ -120,6 +174,11 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
     if is_first_message:
         title = await generate_conversation_title(request.content)
         storage.update_conversation_title(conversation_id, title)
+
+    pid = conversation.get("project_id")
+    project = storage.get_project(pid) if pid else None
+    if project and LLM_PROVIDER == "codex":
+        project_dir.set(project["path"])
 
     # Run the 3-stage council process
     stage1_results, stage2_results, stage3_result, metadata = await run_full_council(
@@ -167,6 +226,12 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             title_task = None
             if is_first_message:
                 title_task = asyncio.create_task(generate_conversation_title(request.content))
+
+            # Point the council at the project folder (title task above stays general)
+            pid = conversation.get("project_id")
+            project = storage.get_project(pid) if pid else None
+            if project and LLM_PROVIDER == "codex":
+                project_dir.set(project["path"])
 
             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
