@@ -110,7 +110,9 @@ function ProviderTiles({ providers, value, onChange }) {
   if (!providers.length) {
     return <p className="drawer-muted">{t('loadingProviders')}</p>;
   }
+  const current = providers.find((p) => p.id === value);
   return (
+    <>
     <div className="provider-tiles">
       {providers.map((p) => (
         <button
@@ -122,11 +124,13 @@ function ProviderTiles({ providers, value, onChange }) {
         >
           <span className="provider-name">{p.label}</span>
           <span className="provider-meta">
-            {p.installed ? t('modelsCount', p.models.length) : t('notInstalled')}
+            {!p.installed ? t('notInstalled') : p.needs_login ? t('needsLogin') : t('modelsCount', p.models.length)}
           </span>
         </button>
       ))}
     </div>
+    {current?.needs_login && <p className="drawer-hint">{t('geminiLoginHint')}</p>}
+    </>
   );
 }
 

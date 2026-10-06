@@ -56,7 +56,18 @@ PROVIDERS = {
     "codex": {"bin": "codex", "label": "Codex CLI"},
     "claude": {"bin": "claude", "label": "Claude Code"},
     "antigravity": {"bin": "agy", "label": "Antigravity"},
+    "gemini": {"bin": "gemini", "label": "Gemini CLI"},
 }
+
+# "default" lets the Gemini CLI pick its own model; any model name can also be typed in
+GEMINI_CLI_MODELS = ["default"]
+
+
+def gemini_cli_logged_in() -> bool:
+    """The Gemini CLI needs a one-time Google login (or an API key) before headless use."""
+    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+        return True
+    return os.path.exists(os.path.expanduser("~/.gemini/oauth_creds.json"))
 
 CLAUDE_MODELS = ["fable", "opus", "sonnet", "haiku"]
 
@@ -82,7 +93,12 @@ def _antigravity_models() -> List[str]:
 
 def list_providers() -> List[Dict[str, Any]]:
     """Installed providers and their models (model lists cached for 10 minutes)."""
-    fetchers = {"codex": _codex_models, "claude": lambda: CLAUDE_MODELS, "antigravity": _antigravity_models}
+    fetchers = {
+        "codex": _codex_models,
+        "claude": lambda: CLAUDE_MODELS,
+        "antigravity": _antigravity_models,
+        "gemini": lambda: GEMINI_CLI_MODELS,
+    }
     result = []
     for pid, info in PROVIDERS.items():
         installed = shutil.which(info["bin"]) is not None
@@ -94,7 +110,10 @@ def list_providers() -> List[Dict[str, Any]]:
             else:
                 models = fetchers[pid]()
                 _models_cache[pid] = (time.time(), models)
-        result.append({"id": pid, "label": info["label"], "installed": installed, "models": models})
+        entry = {"id": pid, "label": info["label"], "installed": installed, "models": models}
+        if pid == "gemini" and installed and not gemini_cli_logged_in():
+            entry["needs_login"] = True
+        result.append(entry)
     return result
 
 

@@ -42,7 +42,7 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 Em **Configurar conselho**, o conselho aparece como uma mesa redonda: o presidente com coroa no topo e cada conselheiro numa cadeira, na cor do seu papel. Clicando numa cadeira, você vê e muda:
 
-- **Onde roda:** Codex CLI, Claude Code ou Antigravity (o app detecta quais estão instalados e lista os modelos de cada um).
+- **Onde roda:** Codex CLI, Claude Code, Antigravity ou Gemini CLI (o app detecta quais estão instalados e lista os modelos de cada um).
 - **Modelo:** escolhido numa lista com busca, e **Testar conexão** mostra se o modelo responde e em quanto tempo.
 - **Papel no conselho:** muda o ângulo da resposta na etapa 1. A avaliação da etapa 2 continua neutra e às cegas.
 
@@ -57,7 +57,7 @@ Em **Configurar conselho**, o conselho aparece como uma mesa redonda: o presiden
 
 Também dá para adicionar cadeiras, tirar alguém de uma sessão sem apagar a cadeira, tornar um conselheiro presidente e misturar provedores: por exemplo, GPT pelo Codex, Claude Sonnet pelo Claude Code e Gemini 3.1 Pro pelo Antigravity, com o Claude Opus presidindo. A configuração fica em `data/council.json`. Na etapa 1, cada aba mostra em que papel o modelo respondeu.
 
-Requisitos: o `claude` (Claude Code) e o `agy` (Antigravity) precisam estar instalados e logados. Os dois rodam sem permissão de editar arquivos.
+Requisitos: o `claude` (Claude Code), o `agy` (Antigravity) e o `gemini` (Gemini CLI) precisam estar instalados e logados. O Gemini CLI é bem mais rápido que o Antigravity para usar Gemini; para logar, rode `gemini` uma vez no terminal. Ele roda no modo `plan`, que é somente leitura. Os dois rodam sem permissão de editar arquivos.
 
 ### Vários conselhos salvos
 

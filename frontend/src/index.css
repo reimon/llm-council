@@ -597,7 +597,7 @@ button, textarea { font: inherit; color: inherit; }
 }
 .drawer-input:focus { border-color: var(--council); }
 
-.provider-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.provider-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .provider-tile {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px;
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left;

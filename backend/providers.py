@@ -120,5 +120,20 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
             if prompt_file:
                 os.remove(prompt_file)
 
+    if provider == "gemini":
+        from .council_config import gemini_cli_logged_in
+        if not gemini_cli_logged_in():
+            # Without a login the CLI opens a browser auth page and waits; fail fast instead
+            print("Error querying gemini: not logged in (run `gemini` once in a terminal to sign in)")
+            return None
+        # Gemini CLI: prompt on stdin, "plan" approval mode is its read-only mode (enforced by the CLI)
+        args = [resolve_bin("gemini"), "-p", "Answer the request above.", "--approval-mode", "plan",
+                "--skip-trust", "--output-format", "text"]
+        if model and model != "default":
+            args += ["-m", model]
+        for d in _readable_dirs():
+            args += ["--include-directories", d]
+        return await _run_cli(args, _cli_prompt(messages), timeout, f"gemini:{model}")
+
     print(f"Unknown provider: {provider}")
     return None
