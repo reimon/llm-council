@@ -59,6 +59,16 @@ Também dá para adicionar cadeiras, tirar alguém de uma sessão sem apagar a c
 
 Requisitos: o `claude` (Claude Code) e o `agy` (Antigravity) precisam estar instalados e logados. Os dois rodam sem permissão de editar arquivos.
 
+### Skills: especialidades para os conselheiros
+
+Na câmara, o botão **Biblioteca de skills** abre um catálogo de especialidades que você instala e depois dá a qualquer cadeira, inclusive ao presidente. Por exemplo: o Gemini como Contrário **com** as skills de PM e CEO.
+
+As skills vêm só de duas fontes confiáveis:
+- **Biblioteca do LLM Council:** 12 skills escritas neste projeto: Gerente de produto, CEO, CTO, CFO, Designer de UX, Marketing e crescimento, Segurança, Jurídico e compliance, Investidor, Cientista de dados, Engenheiro sênior e Voz do cliente.
+- **Do seu computador:** os `SKILL.md` que você já instalou para o Claude Code, o Codex e plugins (`~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills` e o cache de plugins do Claude). São lidos do disco, nunca baixados da internet.
+
+Na etapa 1, as skills da cadeira entram como instruções extras junto com o papel. A avaliação às cegas da etapa 2 continua neutra. As skills do presidente valem na síntese final. A biblioteca instalada fica em `data/skills.json`.
+
 ### Perguntas sobre os seus projetos
 
 Você pode cadastrar a pasta de um projeto e abrir vários chats dentro dele. Nesses chats, cada modelo do conselho lê os arquivos do projeto antes de responder.

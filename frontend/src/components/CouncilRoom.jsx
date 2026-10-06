@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useLang } from '../i18n';
+import SkillLibrary, { skillName } from './SkillLibrary';
 
 export const ROLE_META = {
   generalist: { color: '#8e9bf0' },
@@ -47,7 +48,7 @@ function tableToSeat(x, y) {
   return [50 + dx * edge, 50 + dy * edge, 50 + dx * stop, 50 + dy * stop];
 }
 
-function Seat({ color, icon, name, sub, selected, dimmed, crown, style, onClick, ghost, label }) {
+function Seat({ color, icon, name, sub, selected, dimmed, crown, style, onClick, ghost, label, skills = [] }) {
   return (
     <button
       type="button"
@@ -60,6 +61,14 @@ function Seat({ color, icon, name, sub, selected, dimmed, crown, style, onClick,
       <span className="seat-orb">{icon}</span>
       <span className="seat-name">{name}</span>
       {sub && <span className="seat-sub">{sub}</span>}
+      {skills.length > 0 && (
+        <span className="seat-skills">
+          {skills.slice(0, 2).map((s) => (
+            <span key={s} className="seat-skill">{s}</span>
+          ))}
+          {skills.length > 2 && <span className="seat-skill">+{skills.length - 2}</span>}
+        </span>
+      )}
     </button>
   );
 }
@@ -121,6 +130,76 @@ function ProviderTiles({ providers, value, onChange }) {
   );
 }
 
+function SeatSkills({ seat, installed, onChange, onOpenLibrary }) {
+  const { t, lang } = useLang();
+  const [adding, setAdding] = useState(false);
+  const attached = seat.skills || [];
+  const byId = Object.fromEntries(installed.map((s) => [s.id, s]));
+  const available = installed.filter((s) => !attached.includes(s.id));
+
+  return (
+    <section>
+      <h4>{t('skills')}</h4>
+      {attached.length === 0 && <p className="drawer-hint">{t('noSeatSkills')}</p>}
+      <div className="seat-skill-list">
+        {attached.map((id) => (
+          <span key={id} className="skill-pill">
+            <span className="skill-pill-badge">{byId[id]?.icon || '?'}</span>
+            {byId[id] ? skillName(byId[id], lang) : id}
+            <button
+              type="button"
+              aria-label={t('removeSkillFromSeat', byId[id] ? skillName(byId[id], lang) : id)}
+              onClick={() => onChange(attached.filter((x) => x !== id))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      {adding ? (
+        <div className="skill-picker">
+          {available.length === 0 ? (
+            <p className="drawer-hint">{t('allSkillsUsed')}</p>
+          ) : (
+            available.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="skill-option"
+                onClick={() => {
+                  onChange([...attached, s.id]);
+                  setAdding(false);
+                }}
+              >
+                <span className="skill-pill-badge">{s.icon}</span>
+                <span>
+                  <strong>{skillName(s, lang)}</strong>
+                  <small>{s.description?.[lang] || s.description?.pt}</small>
+                </span>
+              </button>
+            ))
+          )}
+          <div className="skill-picker-foot">
+            <button type="button" className="text-link" onClick={onOpenLibrary}>{t('openLibrary')}</button>
+            <button type="button" className="text-link" onClick={() => setAdding(false)}>{t('cancel')}</button>
+          </div>
+        </div>
+      ) : (
+        <div className="test-row">
+          <button
+            type="button"
+            className="drawer-btn"
+            onClick={() => (installed.length ? setAdding(true) : onOpenLibrary())}
+          >
+            {t('addSkill')}
+          </button>
+          {installed.length === 0 && <span className="drawer-hint">{t('libraryEmptyHint')}</span>}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function TestButton({ seat }) {
   const { t } = useLang();
   const [state, setState] = useState(null);
@@ -154,6 +233,16 @@ export default function CouncilRoom({ onClose }) {
   const [providers, setProviders] = useState([]);
   const [selected, setSelected] = useState('chair');
   const [status, setStatus] = useState('');
+  const [installedSkills, setInstalledSkills] = useState([]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+
+  const refreshSkills = async () => {
+    try {
+      setInstalledSkills(await api.getInstalledSkills());
+    } catch {
+      setInstalledSkills([]);
+    }
+  };
 
   useEffect(() => {
     api.getCouncil().then((c) => {
@@ -161,6 +250,7 @@ export default function CouncilRoom({ onClose }) {
       setSaved(JSON.stringify(c));
     });
     api.getProviders().then(setProviders).catch(() => setProviders([]));
+    refreshSkills();
   }, []);
 
   const dirty = council && JSON.stringify(council) !== saved;
@@ -211,7 +301,7 @@ export default function CouncilRoom({ onClose }) {
   };
 
   const makeChair = () => {
-    setCouncil((c) => ({ ...c, chairman: { name: seat.name, provider: seat.provider, model: seat.model } }));
+    setCouncil((c) => ({ ...c, chairman: { name: seat.name, provider: seat.provider, model: seat.model, skills: seat.skills || [] } }));
     setSelected('chair');
   };
 
@@ -224,6 +314,23 @@ export default function CouncilRoom({ onClose }) {
     } catch (err) {
       setStatus(err.message);
     }
+  };
+
+  const skillBadges = (ids = []) =>
+    ids.map((id) => installedSkills.find((s) => s.id === id)?.icon).filter(Boolean);
+
+  // Removing a skill from the library also strips it from seats on the server; mirror that locally
+  const onLibraryChanged = async () => {
+    const next = await api.getInstalledSkills();
+    setInstalledSkills(next);
+    const ids = new Set(next.map((s) => s.id));
+    const strip = (seat) => ({ ...seat, skills: (seat.skills || []).filter((id) => ids.has(id)) });
+    setCouncil((c) => ({ ...c, chairman: strip(c.chairman), members: c.members.map(strip) }));
+    setSaved((prev) => {
+      if (!prev) return prev;
+      const p = JSON.parse(prev);
+      return JSON.stringify({ ...p, chairman: strip(p.chairman), members: p.members.map(strip) });
+    });
   };
 
   const activeCount = useMemo(() => members.filter((m) => m.enabled).length, [members]);
@@ -246,6 +353,10 @@ export default function CouncilRoom({ onClose }) {
         </div>
         <div className="room-actions">
           {status && <span className="room-status">{status}</span>}
+          <button type="button" className="room-btn" onClick={() => setLibraryOpen(true)}>
+            {t('skillLibrary')}
+            {installedSkills.length > 0 && <span className="room-count">{installedSkills.length}</span>}
+          </button>
           <button type="button" className="room-btn" onClick={onClose}>
             {t('backToChat')}
           </button>
@@ -297,6 +408,7 @@ export default function CouncilRoom({ onClose }) {
             sub={t('chairman')}
             label={t('chairmanSeat', council.chairman.name)}
             selected={selected === 'chair'}
+            skills={skillBadges(council.chairman.skills)}
             style={{ left: '50%', top: '12%' }}
             onClick={() => setSelected('chair')}
           />
@@ -311,6 +423,7 @@ export default function CouncilRoom({ onClose }) {
               label={`${m.name}, ${t(`role_${m.role}`)}`}
               selected={selected === m.id}
               dimmed={!m.enabled}
+              skills={skillBadges(m.skills)}
               style={seatPosition(i, members.length + 1)}
               onClick={() => setSelected(m.id)}
             />
@@ -392,6 +505,13 @@ export default function CouncilRoom({ onClose }) {
               <TestButton seat={seat} />
             </section>
 
+            <SeatSkills
+              seat={seat}
+              installed={installedSkills}
+              onChange={(skills) => patchSeat({ skills })}
+              onOpenLibrary={() => setLibraryOpen(true)}
+            />
+
             {selected !== 'chair' && (
               <>
                 <section>
@@ -428,6 +548,17 @@ export default function CouncilRoom({ onClose }) {
           </aside>
         )}
       </div>
+
+      {libraryOpen && (
+        <SkillLibrary
+          installed={installedSkills}
+          onChanged={onLibraryChanged}
+          onClose={() => setLibraryOpen(false)}
+          seatName={seat?.name}
+          seatSkills={seat?.skills || []}
+          onAttach={(id) => patchSeat({ skills: [...(seat.skills || []), id] })}
+        />
+      )}
     </div>
   );
 }

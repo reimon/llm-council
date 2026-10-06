@@ -134,6 +134,30 @@ export const api = {
     return data;
   },
 
+  async getSkillCatalog() {
+    const response = await fetch(`${API_BASE}/api/skills/catalog`);
+    if (!response.ok) throw new Error('Failed to load skills');
+    return response.json();
+  },
+
+  async getInstalledSkills() {
+    const response = await fetch(`${API_BASE}/api/skills`);
+    if (!response.ok) throw new Error('Failed to load skills');
+    return response.json();
+  },
+
+  async installSkill(id) {
+    const response = await fetch(`${API_BASE}/api/skills/${encodeURIComponent(id)}`, { method: 'POST' });
+    if (!response.ok) throw new Error('Failed to install skill');
+    return response.json();
+  },
+
+  async uninstallSkill(id) {
+    const response = await fetch(`${API_BASE}/api/skills/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Failed to remove skill');
+    return response.json();
+  },
+
   async getProviders() {
     const response = await fetch(`${API_BASE}/api/providers`);
     if (!response.ok) throw new Error('Failed to load providers');

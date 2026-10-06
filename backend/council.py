@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Tuple
 from .config import LLM_PROVIDER, TITLE_MODEL
 from .council_config import active_members, load_council, role_prompt
 from .providers import query_member
+from .skills import skills_prompt
 
 
 async def query_members_parallel(
@@ -27,8 +28,10 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
         List of dicts with 'model' and 'response' keys
     """
     def build(member):
-        persona = role_prompt(member.get("role"))
-        content = f"{persona}\n\n{user_query}" if persona else user_query
+        preamble = "\n\n".join(
+            x for x in (role_prompt(member.get("role")), skills_prompt(member.get("skills", []))) if x
+        )
+        content = f"{preamble}\n\n{user_query}" if preamble else user_query
         return [{"role": "user", "content": content}]
 
     # Query all seats in parallel, each with its role
@@ -175,6 +178,12 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     # Query the chairman
     chairman = load_council()["chairman"]
+
+    # Skills attached to the chair shape the synthesis
+    chair_skills = skills_prompt(chairman.get("skills", []))
+    if chair_skills:
+        messages = [{"role": "user", "content": f"{chair_skills}\n\n{chairman_prompt}"}]
+
     response = await query_member(chairman, messages)
 
     if response is None:

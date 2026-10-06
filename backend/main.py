@@ -17,6 +17,7 @@ from .config import LLM_PROVIDER
 from .codex_client import project_dir, attached_images
 from . import attachments as attachments_mod
 from . import council_config
+from . import skills as skills_mod
 from .providers import extra_dirs, query_member
 import time
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
@@ -155,6 +156,39 @@ async def put_council(council: Dict[str, Any]):
         return council_config.save_council(council)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/skills/catalog")
+async def skills_catalog():
+    """Skills available from trusted sources (built-in library and local SKILL.md files)."""
+    return await asyncio.to_thread(skills_mod.catalog)
+
+
+@app.get("/api/skills")
+async def installed_skills():
+    """Skills installed in the council library."""
+    return skills_mod.list_installed()
+
+
+@app.post("/api/skills/{skill_id}")
+async def install_skill(skill_id: str):
+    """Install a skill from a trusted source."""
+    try:
+        return await asyncio.to_thread(skills_mod.install, skill_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/skills/{skill_id}")
+async def uninstall_skill(skill_id: str):
+    """Remove a skill from the library and from every seat that uses it."""
+    if not skills_mod.uninstall(skill_id):
+        raise HTTPException(status_code=404, detail="Skill not installed")
+    council = council_config.load_council()
+    for seat in council["members"] + [council["chairman"]]:
+        seat["skills"] = [s for s in seat.get("skills", []) if s != skill_id]
+    council_config.save_council(council)
+    return {"status": "removed"}
 
 
 @app.get("/api/providers")

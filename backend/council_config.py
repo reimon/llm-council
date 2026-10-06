@@ -130,6 +130,7 @@ def save_council(council: Dict[str, Any]) -> Dict[str, Any]:
         m.setdefault("enabled", True)
         if m.get("role") not in ROLES:
             m["role"] = "generalist"
+        m["skills"] = [s for s in m.get("skills", []) if isinstance(s, str)]
         base = (m.get("name") or m.get("model") or "model").strip()
         name, n = base, 2
         while name in seen:
@@ -142,6 +143,7 @@ def save_council(council: Dict[str, Any]) -> Dict[str, Any]:
     if not chairman.get("model"):
         raise ValueError("Escolha um presidente")
     chairman["name"] = (chairman.get("name") or chairman["model"]).strip()
+    chairman["skills"] = [s for s in chairman.get("skills", []) if isinstance(s, str)]
     data = {"members": members, "chairman": chairman}
     os.makedirs(os.path.dirname(COUNCIL_PATH), exist_ok=True)
     with open(COUNCIL_PATH, "w") as f:
