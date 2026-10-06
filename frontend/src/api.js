@@ -2,7 +2,7 @@
  * API client for the LLM Council backend.
  */
 
-const API_BASE = 'http://localhost:8001';
+const API_BASE = 'http://127.0.0.1:8001';
 
 export const api = {
   /**
@@ -243,9 +243,10 @@ export const api = {
    * @param {string} conversationId - The conversation ID
    * @param {string} content - The message content
    * @param {function} onEvent - Callback function for each event: (eventType, data) => void
+   * @param {AbortSignal} [signal] - Optional abort signal
    * @returns {Promise<void>}
    */
-  async sendMessageStream(conversationId, content, attachments, onEvent) {
+  async sendMessageStream(conversationId, content, attachments, onEvent, signal) {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/stream`,
       {
@@ -258,6 +259,7 @@ export const api = {
             ? { content, attachments }
             : { content, attachments: attachments?.attachments || [], council_id: attachments?.councilId || null }
         ),
+        signal,
       }
     );
 
@@ -265,30 +267,59 @@ export const api = {
       throw new Error('Failed to send message');
     }
 
+    return api._consumeSSE(response, onEvent, signal);
+  },
+
+  /**
+   * Reconnect to an in-progress or recently completed deliberation stream.
+   */
+  async reconnectStream(conversationId, onEvent, signal) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/events`,
+      { signal }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to reconnect to deliberation stream');
+    }
+
+    return api._consumeSSE(response, onEvent, signal);
+  },
+
+  async _consumeSSE(response, onEvent, signal) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
     let buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        if (signal?.aborted) {
+          reader.cancel();
+          break;
+        }
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data: ')) {
-          const data = trimmed.slice(6);
-          try {
-            const event = JSON.parse(data);
-            onEvent(event.type, event);
-          } catch (e) {
-            console.error('Failed to parse SSE event:', e, data);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const data = trimmed.slice(6);
+            try {
+              const event = JSON.parse(data);
+              onEvent(event.type, event);
+            } catch (e) {
+              console.error('Failed to parse SSE event:', e, data);
+            }
           }
         }
       }
+    } catch (err) {
+      if (signal?.aborted) return;
+      throw err;
     }
   },
 };

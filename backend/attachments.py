@@ -5,6 +5,7 @@ import html
 import json
 import os
 import re
+import shutil
 import subprocess
 import uuid
 from typing import Any, Dict, List, Tuple
@@ -12,6 +13,7 @@ from typing import Any, Dict, List, Tuple
 import httpx
 
 from .config import DATA_DIR
+from .platform_utils import resolve_bin
 
 UPLOADS_DIR = os.path.join(os.path.dirname(DATA_DIR), "uploads")
 VIDEO_FRAMES = 6
@@ -34,8 +36,10 @@ def upload_dir(upload_id: str) -> str:
 
 def _extract_video_frames(video_path: str, out_dir: str) -> List[str]:
     """Grab VIDEO_FRAMES evenly spaced frames so image-only models can 'see' the video."""
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        raise ValueError("para anexar vídeos, instale o ffmpeg (https://ffmpeg.org/download.html)")
     probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", video_path],
+        [resolve_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration", "-of", "json", video_path],
         capture_output=True, text=True,
     )
     duration = float(json.loads(probe.stdout or "{}").get("format", {}).get("duration", 0) or 0)
@@ -44,7 +48,7 @@ def _extract_video_frames(video_path: str, out_dir: str) -> List[str]:
     fps = VIDEO_FRAMES / duration
     pattern = os.path.join(out_dir, "frame_%02d.jpg")
     subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-i", video_path,
+        [resolve_bin("ffmpeg"), "-v", "error", "-y", "-i", video_path,
          "-vf", f"fps={fps},scale='min(1280,iw)':-2", "-frames:v", str(VIDEO_FRAMES), pattern],
         check=True, capture_output=True,
     )

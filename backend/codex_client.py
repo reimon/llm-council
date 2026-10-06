@@ -6,6 +6,7 @@ import os
 import tempfile
 from typing import List, Dict, Any, Optional
 from .config import CODEX_BIN
+from .platform_utils import resolve_bin
 
 # Folder of the project the current question is about (None = general question).
 # Set by the API around the council stages; asyncio tasks inherit it.
@@ -42,7 +43,7 @@ async def query_model(
     os.close(fd)
 
     args = [
-        CODEX_BIN, "exec",
+        resolve_bin(CODEX_BIN), "exec",
         "--skip-git-repo-check",
         "--ephemeral",
         "--sandbox", "read-only",

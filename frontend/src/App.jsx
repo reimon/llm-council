@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -6,6 +6,131 @@ import CouncilRoom from './components/CouncilRoom';
 import { api } from './api';
 import { useLang } from './i18n';
 import './App.css';
+
+function applyDeliberationEvent(prevDelib, eventType, event) {
+  const current = prevDelib || {
+    activeStage: 1,
+    startedAt: Date.now(),
+    completedAt: null,
+    members: [],
+    chairman: null,
+    models: {},
+    stage1: null,
+    stage2: null,
+    stage3: null,
+    metadata: null,
+    loading: { stage1: false, stage2: false, stage3: false },
+  };
+
+  const next = {
+    ...current,
+    loading: { ...current.loading },
+    models: { ...current.models },
+  };
+
+  switch (eventType) {
+    case 'council_init': {
+      const modelsMap = {};
+      (event.members || []).forEach((m) => {
+        modelsMap[m.name] = {
+          status: 'thinking',
+          role: m.role,
+          model: m.model,
+          provider: m.provider,
+          stage: 1,
+        };
+      });
+      next.activeStage = 1;
+      next.members = event.members || [];
+      next.chairman = event.chairman || null;
+      next.models = { ...next.models, ...modelsMap };
+      break;
+    }
+
+    case 'stage1_start': {
+      next.activeStage = 1;
+      next.loading.stage1 = true;
+      if (event.models && (!next.members || next.members.length === 0)) {
+        next.members = event.models.map((m) => ({ name: m }));
+      }
+      break;
+    }
+
+    case 'model_start': {
+      const prevModel = next.models[event.model] || {};
+      next.models[event.model] = {
+        ...prevModel,
+        status: 'thinking',
+        stage: event.stage,
+        role: event.role || prevModel.role,
+        provider: event.provider || prevModel.provider,
+        startedAt: Date.now(),
+      };
+      break;
+    }
+
+    case 'model_complete': {
+      const prevModel = next.models[event.model] || {};
+      next.models[event.model] = {
+        ...prevModel,
+        status: event.success ? 'completed' : 'error',
+        duration: event.duration,
+        tokens: event.tokens,
+        stage: event.stage,
+      };
+      break;
+    }
+
+    case 'stage1_complete': {
+      next.stage1 = event.data;
+      next.loading.stage1 = false;
+      break;
+    }
+
+    case 'stage2_start': {
+      next.activeStage = 2;
+      next.loading.stage2 = true;
+      const updated = { ...next.models };
+      Object.keys(updated).forEach((k) => {
+        updated[k] = { ...updated[k], status: 'thinking', stage: 2 };
+      });
+      next.models = updated;
+      break;
+    }
+
+    case 'stage2_complete': {
+      next.stage2 = event.data;
+      next.metadata = event.metadata;
+      next.loading.stage2 = false;
+      break;
+    }
+
+    case 'stage3_start': {
+      next.activeStage = 3;
+      next.loading.stage3 = true;
+      if (event.chairman && !next.chairman) {
+        next.chairman = { name: event.chairman };
+      }
+      break;
+    }
+
+    case 'stage3_complete': {
+      next.stage3 = event.data;
+      next.loading.stage3 = false;
+      break;
+    }
+
+    case 'complete': {
+      next.activeStage = 'done';
+      next.completedAt = Date.now();
+      break;
+    }
+
+    default:
+      break;
+  }
+  return next;
+}
 
 function App() {
   const { t, title: displayTitle } = useLang();
@@ -17,6 +142,14 @@ function App() {
   // In-app confirmation; native window.confirm is blocked in some embedded browsers
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [view, setView] = useState('chat'); // 'chat' | 'council'
+
+  // Active deliberations keyed by conversationId
+  const [activeDeliberations, setActiveDeliberations] = useState({});
+  const activeDeliberationsRef = useRef({});
+  activeDeliberationsRef.current = activeDeliberations;
+
+  // Active SSE stream connections keyed by conversationId
+  const activeStreamsRef = useRef(new Set());
 
   // Load conversations on mount
   useEffect(() => {
@@ -48,9 +181,126 @@ function App() {
     }
   };
 
+  const handleDeliberationEvent = (convId, eventType, event) => {
+    // 1. Update activeDeliberations map
+    setActiveDeliberations((prev) => {
+      if (eventType === 'complete') {
+        const { [convId]: _, ...rest } = prev;
+        return rest;
+      }
+      const updated = applyDeliberationEvent(prev[convId], eventType, event);
+      return { ...prev, [convId]: updated };
+    });
+
+    // 2. Refresh sidebar list when title or deliberation finishes
+    if (eventType === 'title_complete' || eventType === 'complete') {
+      loadConversations();
+    }
+
+    // 3. Deliberation finished: if viewing this conversation, reload it to show saved data
+    if (eventType === 'complete') {
+      if (currentConversationId === convId) {
+        loadConversation(convId);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (eventType === 'error') {
+      console.error(`Deliberation error on conversation ${convId}:`, event.message);
+      if (currentConversationId === convId) {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 4. Update the current active conversation if it matches convId
+    setCurrentConversation((prev) => {
+      if (!prev || prev.id !== convId) return prev;
+
+      const messages = [...prev.messages];
+      let lastMsg = messages[messages.length - 1];
+      if (!lastMsg || lastMsg.role !== 'assistant') {
+        lastMsg = {
+          role: 'assistant',
+          stage1: null,
+          stage2: null,
+          stage3: null,
+          metadata: null,
+          loading: { stage1: false, stage2: false, stage3: false },
+          deliberation: null,
+        };
+        messages.push(lastMsg);
+      } else {
+        lastMsg = { ...lastMsg };
+        messages[messages.length - 1] = lastMsg;
+      }
+
+      const updatedDelib = applyDeliberationEvent(lastMsg.deliberation, eventType, event);
+      lastMsg.deliberation = updatedDelib;
+      lastMsg.stage1 = updatedDelib.stage1;
+      lastMsg.stage2 = updatedDelib.stage2;
+      lastMsg.stage3 = updatedDelib.stage3;
+      lastMsg.metadata = updatedDelib.metadata;
+      lastMsg.loading = updatedDelib.loading;
+
+      return { ...prev, messages };
+    });
+  };
+
+  const startListeningToDeliberation = (convId) => {
+    if (activeStreamsRef.current.has(convId)) return;
+    activeStreamsRef.current.add(convId);
+
+    api.reconnectStream(convId, (eventType, event) => {
+      handleDeliberationEvent(convId, eventType, event);
+    }).catch((err) => {
+      console.error(`Reconnect stream error for conv ${convId}:`, err);
+    }).finally(() => {
+      activeStreamsRef.current.delete(convId);
+    });
+  };
+
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
+      const activeDelib = activeDeliberationsRef.current[id];
+
+      if (activeDelib) {
+        // Conversation has an active deliberation running in memory
+        const messages = [...conv.messages];
+        const lastMsg = messages[messages.length - 1];
+        if (!lastMsg || lastMsg.role !== 'assistant') {
+          messages.push({
+            role: 'assistant',
+            stage1: activeDelib.stage1,
+            stage2: activeDelib.stage2,
+            stage3: activeDelib.stage3,
+            metadata: activeDelib.metadata,
+            loading: activeDelib.loading,
+            deliberation: activeDelib,
+          });
+        } else {
+          messages[messages.length - 1] = {
+            ...lastMsg,
+            stage1: activeDelib.stage1,
+            stage2: activeDelib.stage2,
+            stage3: activeDelib.stage3,
+            metadata: activeDelib.metadata,
+            loading: activeDelib.loading,
+            deliberation: activeDelib,
+          };
+        }
+        conv.messages = messages;
+        setIsLoading(true);
+      } else if (conv.is_deliberating) {
+        // Deliberation is running on backend (e.g. after reload)
+        setIsLoading(true);
+        startListeningToDeliberation(id);
+      } else {
+        setIsLoading(false);
+      }
+
       setCurrentConversation(conv);
     } catch (error) {
       console.error('Failed to load conversation:', error);
@@ -94,6 +344,11 @@ function App() {
 
   const deleteConversation = async (id) => {
     try {
+      activeStreamsRef.current.delete(id);
+      setActiveDeliberations((prev) => {
+        const { [id]: _, ...rest } = prev;
+        return rest;
+      });
       await api.deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (id === currentConversationId) {
@@ -137,243 +392,107 @@ function App() {
     }
   };
 
-  const handleSendMessage = async (content, attachments = [], council = null) => {
+  const handleSendMessage = async (content, attachments = [], council = null, isRetry = false) => {
     if (!currentConversationId) return;
+    const convId = currentConversationId;
 
     setIsLoading(true);
-    try {
-      // Optimistically add user message to UI
-      const userMessage = { role: 'user', content, attachments, council };
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: [...prev.messages, userMessage],
-      }));
 
-      // Create a partial assistant message that will be updated progressively
+    const initialDelib = {
+      activeStage: 1,
+      startedAt: Date.now(),
+      completedAt: null,
+      members: [],
+      chairman: null,
+      models: {},
+      stage1: null,
+      stage2: null,
+      stage3: null,
+      metadata: null,
+      loading: { stage1: false, stage2: false, stage3: false },
+    };
+
+    setActiveDeliberations((prev) => ({
+      ...prev,
+      [convId]: initialDelib,
+    }));
+
+    if (!isRetry) {
+      const userMessage = { role: 'user', content, attachments, council };
       const assistantMessage = {
         role: 'assistant',
         stage1: null,
         stage2: null,
         stage3: null,
         metadata: null,
-        loading: {
-          stage1: false,
-          stage2: false,
-          stage3: false,
-        },
-        deliberation: {
-          activeStage: 1,
-          startedAt: Date.now(),
-          completedAt: null,
-          members: [],
-          chairman: null,
-          models: {},
-        },
+        loading: { stage1: false, stage2: false, stage3: false },
+        deliberation: initialDelib,
       };
 
-      // Add the partial assistant message
+      setCurrentConversation((prev) => ({
+        ...prev,
+        messages: [...prev.messages, userMessage, assistantMessage],
+      }));
+    } else {
+      const assistantMessage = {
+        role: 'assistant',
+        stage1: null,
+        stage2: null,
+        stage3: null,
+        metadata: null,
+        loading: { stage1: false, stage2: false, stage3: false },
+        deliberation: initialDelib,
+      };
+
       setCurrentConversation((prev) => ({
         ...prev,
         messages: [...prev.messages, assistantMessage],
       }));
+    }
 
-      // Send message with streaming
-      await api.sendMessageStream(currentConversationId, content, { attachments, councilId: council?.id }, (eventType, event) => {
-        switch (eventType) {
-          case 'council_init':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg || lastMsg.role !== 'assistant') return prev;
-              const modelsMap = {};
-              (event.members || []).forEach((m) => {
-                modelsMap[m.name] = {
-                  status: 'thinking',
-                  role: m.role,
-                  model: m.model,
-                  provider: m.provider,
-                  stage: 1,
-                };
-              });
-              lastMsg.deliberation = {
-                activeStage: 1,
-                startedAt: Date.now(),
-                completedAt: null,
-                members: event.members || [],
-                chairman: event.chairman || null,
-                models: modelsMap,
-              };
-              return { ...prev, messages };
-            });
-            break;
+    activeStreamsRef.current.add(convId);
 
-          case 'model_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg?.deliberation) return prev;
-              const prevModel = lastMsg.deliberation.models[event.model] || {};
-              lastMsg.deliberation.models = {
-                ...lastMsg.deliberation.models,
-                [event.model]: {
-                  ...prevModel,
-                  status: 'thinking',
-                  stage: event.stage,
-                  role: event.role || prevModel.role,
-                  provider: event.provider || prevModel.provider,
-                  startedAt: Date.now(),
-                },
-              };
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'model_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg?.deliberation) return prev;
-              const prevModel = lastMsg.deliberation.models[event.model] || {};
-              lastMsg.deliberation.models = {
-                ...lastMsg.deliberation.models,
-                [event.model]: {
-                  ...prevModel,
-                  status: event.success ? 'completed' : 'error',
-                  duration: event.duration,
-                  tokens: event.tokens,
-                  stage: event.stage,
-                },
-              };
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage1_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg) return prev;
-              lastMsg.loading.stage1 = true;
-              if (lastMsg.deliberation) {
-                lastMsg.deliberation.activeStage = 1;
-                if (event.models && (!lastMsg.deliberation.members || lastMsg.deliberation.members.length === 0)) {
-                  lastMsg.deliberation.members = event.models.map((m) => ({ name: m }));
-                }
-              }
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage1_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg) return prev;
-              lastMsg.stage1 = event.data;
-              lastMsg.loading.stage1 = false;
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage2_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg) return prev;
-              lastMsg.loading.stage2 = true;
-              if (lastMsg.deliberation) {
-                lastMsg.deliberation.activeStage = 2;
-                const updated = { ...lastMsg.deliberation.models };
-                Object.keys(updated).forEach((k) => {
-                  updated[k] = { ...updated[k], status: 'thinking', stage: 2 };
-                });
-                lastMsg.deliberation.models = updated;
-              }
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage2_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg) return prev;
-              lastMsg.stage2 = event.data;
-              lastMsg.metadata = event.metadata;
-              lastMsg.loading.stage2 = false;
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage3_start':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg) return prev;
-              lastMsg.loading.stage3 = true;
-              if (lastMsg.deliberation) {
-                lastMsg.deliberation.activeStage = 3;
-                if (event.chairman && !lastMsg.deliberation.chairman) {
-                  lastMsg.deliberation.chairman = { name: event.chairman };
-                }
-              }
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'stage3_complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (!lastMsg) return prev;
-              lastMsg.stage3 = event.data;
-              lastMsg.loading.stage3 = false;
-              return { ...prev, messages };
-            });
-            break;
-
-          case 'title_complete':
-            loadConversations();
-            break;
-
-          case 'complete':
-            setCurrentConversation((prev) => {
-              const messages = [...prev.messages];
-              const lastMsg = messages[messages.length - 1];
-              if (lastMsg?.deliberation) {
-                lastMsg.deliberation.activeStage = 'done';
-                lastMsg.deliberation.completedAt = Date.now();
-              }
-              return { ...prev, messages };
-            });
-            loadConversations();
-            setIsLoading(false);
-            break;
-
-          case 'error':
-            console.error('Stream error:', event.message);
-            setIsLoading(false);
-            break;
-
-          default:
-            console.log('Event:', eventType, event);
+    try {
+      await api.sendMessageStream(
+        convId,
+        content,
+        { attachments, councilId: council?.id },
+        (eventType, event) => {
+          handleDeliberationEvent(convId, eventType, event);
         }
-      });
+      );
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Remove optimistic messages on error
-      setCurrentConversation((prev) => ({
-        ...prev,
-        messages: prev.messages.slice(0, -2),
-      }));
+      setActiveDeliberations((prev) => {
+        const { [convId]: _, ...rest } = prev;
+        return rest;
+      });
+      loadConversation(convId);
       setIsLoading(false);
+    } finally {
+      activeStreamsRef.current.delete(convId);
     }
   };
+
+  const handleRetryDeliberation = (lastUserMsg) => {
+    if (!lastUserMsg) return;
+    handleSendMessage(
+      lastUserMsg.content,
+      lastUserMsg.attachments || [],
+      lastUserMsg.council || null,
+      true /* isRetry */
+    );
+  };
+
+  const augmentedConversations = conversations.map((c) => ({
+    ...c,
+    is_deliberating: Boolean(activeDeliberations[c.id] || c.is_deliberating),
+  }));
 
   return (
     <div className="app">
       <Sidebar
-        conversations={conversations}
+        conversations={augmentedConversations}
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
@@ -390,6 +509,7 @@ function App() {
         <ChatInterface
           conversation={currentConversation}
           onSendMessage={handleSendMessage}
+          onRetryDeliberation={handleRetryDeliberation}
           isLoading={isLoading}
         />
       )}

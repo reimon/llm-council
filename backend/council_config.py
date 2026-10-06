@@ -9,6 +9,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
+from .platform_utils import resolve_bin
 from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, LLM_PROVIDER
 
 COUNCIL_PATH = os.path.join(os.path.dirname(DATA_DIR), "council.json")
@@ -65,7 +66,7 @@ _models_cache: Dict[str, Any] = {}
 def _codex_models() -> List[str]:
     path = os.path.expanduser("~/.codex/models_cache.json")
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return [m["slug"] for m in json.load(f).get("models", []) if m.get("slug")]
     except Exception:
         return []
@@ -73,7 +74,7 @@ def _codex_models() -> List[str]:
 
 def _antigravity_models() -> List[str]:
     try:
-        out = subprocess.run(["agy", "models"], capture_output=True, text=True, timeout=60).stdout
+        out = subprocess.run([resolve_bin("agy"), "models"], capture_output=True, text=True, timeout=60).stdout
     except Exception:
         return []
     return [line.split("\t")[0].strip() for line in out.splitlines() if "\t" in line]
@@ -124,10 +125,10 @@ selected_council: contextvars.ContextVar = contextvars.ContextVar("selected_coun
 def _read_store() -> Dict[str, Any]:
     """All saved councils. The first run migrates the single council.json into 'Conselho principal'."""
     if os.path.exists(COUNCILS_PATH):
-        with open(COUNCILS_PATH) as f:
+        with open(COUNCILS_PATH, encoding="utf-8") as f:
             return json.load(f)
     if os.path.exists(COUNCIL_PATH):
-        with open(COUNCIL_PATH) as f:
+        with open(COUNCIL_PATH, encoding="utf-8") as f:
             base = json.load(f)
     else:
         base = _default_council()
@@ -139,7 +140,7 @@ def _read_store() -> Dict[str, Any]:
 
 def _write_store(store: Dict[str, Any]):
     os.makedirs(os.path.dirname(COUNCILS_PATH), exist_ok=True)
-    with open(COUNCILS_PATH, "w") as f:
+    with open(COUNCILS_PATH, "w", encoding="utf-8") as f:
         json.dump(store, f, indent=2, ensure_ascii=False)
 
 

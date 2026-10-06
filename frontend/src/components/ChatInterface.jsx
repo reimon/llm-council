@@ -11,6 +11,7 @@ import './ChatInterface.css';
 export default function ChatInterface({
   conversation,
   onSendMessage,
+  onRetryDeliberation,
   isLoading,
 }) {
   const { t } = useLang();
@@ -37,6 +38,17 @@ export default function ChatInterface({
   }
 
   const project = conversation.project;
+
+  const lastMsg = conversation.messages[conversation.messages.length - 1];
+  const hasActiveDeliberation =
+    isLoading ||
+    conversation.messages.some(
+      (m) =>
+        m.role === 'assistant' &&
+        (m.loading?.stage1 || m.loading?.stage2 || m.loading?.stage3 || (m.deliberation && m.deliberation.activeStage !== 'done'))
+    );
+  const isStrandedUserMessage =
+    lastMsg?.role === 'user' && !hasActiveDeliberation;
 
   return (
     <div className="chat-interface">
@@ -118,6 +130,23 @@ export default function ChatInterface({
               )}
             </div>
           ))
+        )}
+
+        {isStrandedUserMessage && (
+          <div className="stranded-message-banner">
+            <div className="stranded-info">
+              <span className="stranded-icon">⚠️</span>
+              <span>{t('interruptedDeliberation')}</span>
+            </div>
+            <button
+              type="button"
+              className="stranded-retry-btn"
+              onClick={() => onRetryDeliberation && onRetryDeliberation(lastMsg)}
+              disabled={isLoading}
+            >
+              {t('retryDeliberation')}
+            </button>
+          </div>
         )}
 
         {isLoading && !conversation.messages.some((m) => m.role === 'assistant' && (m.loading?.stage1 || m.loading?.stage2 || m.loading?.stage3 || m.deliberation)) && (

@@ -93,6 +93,65 @@ button, textarea { font: inherit; color: inherit; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .conversation-meta { font-size: 12px; color: #8a92a8; margin-top: 2px; }
+.conversation-deliberating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #60a5fa;
+  font-weight: 500;
+}
+.conversation-deliberating-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulse-dot-glow 1.5s infinite ease-in-out;
+}
+@keyframes pulse-dot-glow {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.stranded-message-banner {
+  margin: 16px 0;
+  padding: 14px 18px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  backdrop-filter: blur(8px);
+}
+.stranded-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #fcd34d;
+}
+.stranded-icon {
+  font-size: 16px;
+}
+.stranded-retry-btn {
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: #f59e0b;
+  color: #0b0f19;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.stranded-retry-btn:hover {
+  background: #fbbf24;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
 
 /* project groups */
 .group-heading {

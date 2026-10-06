@@ -21,6 +21,8 @@ function FolderIcon() {
 
 function ConversationItem({ conv, active, onSelect, onDelete }) {
   const { t, title } = useLang();
+  const isDeliberating = Boolean(conv.is_deliberating);
+
   return (
     <div
       className={`conversation-item ${active ? 'active' : ''}`}
@@ -31,7 +33,14 @@ function ConversationItem({ conv, active, onSelect, onDelete }) {
     >
       <div className="conversation-title">{title(conv.title)}</div>
       <div className="conversation-meta">
-        {conv.message_count === 0 ? t('notSent') : t('answered')}
+        {isDeliberating ? (
+          <span className="conversation-deliberating">
+            <span className="conversation-deliberating-pulse" />
+            {t('deliberating')}
+          </span>
+        ) : (
+          conv.message_count === 0 ? t('notSent') : t('answered')
+        )}
       </div>
       <button
         type="button"

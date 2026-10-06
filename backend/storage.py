@@ -25,13 +25,13 @@ def list_projects() -> List[Dict[str, Any]]:
     """List all projects, oldest first."""
     if not os.path.exists(PROJECTS_PATH):
         return []
-    with open(PROJECTS_PATH) as f:
+    with open(PROJECTS_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_projects(projects: List[Dict[str, Any]]):
     Path(PROJECTS_PATH).parent.mkdir(parents=True, exist_ok=True)
-    with open(PROJECTS_PATH, "w") as f:
+    with open(PROJECTS_PATH, "w", encoding="utf-8") as f:
         json.dump(projects, f, indent=2)
 
 
@@ -86,7 +86,7 @@ def create_conversation(conversation_id: str, project_id: Optional[str] = None) 
 
     # Save to file
     path = get_conversation_path(conversation_id)
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding="utf-8") as f:
         json.dump(conversation, f, indent=2)
 
     return conversation
@@ -107,7 +107,7 @@ def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
     if not os.path.exists(path):
         return None
 
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -121,7 +121,7 @@ def save_conversation(conversation: Dict[str, Any]):
     ensure_data_dir()
 
     path = get_conversation_path(conversation['id'])
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding="utf-8") as f:
         json.dump(conversation, f, indent=2)
 
 
@@ -138,7 +138,7 @@ def list_conversations() -> List[Dict[str, Any]]:
     for filename in os.listdir(DATA_DIR):
         if filename.endswith('.json'):
             path = os.path.join(DATA_DIR, filename)
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding="utf-8") as f:
                 data = json.load(f)
                 # Return metadata only
                 conversations.append({
@@ -180,6 +180,10 @@ def add_user_message(
     conversation = get_conversation(conversation_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found")
+
+    messages = conversation.get("messages", [])
+    if messages and messages[-1].get("role") == "user" and messages[-1].get("content") == content:
+        return
 
     conversation["messages"].append({
         "role": "user",

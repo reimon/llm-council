@@ -7,6 +7,7 @@ import tempfile
 from typing import Any, Dict, List, Optional
 
 from . import codex_client
+from .platform_utils import resolve_bin, MAX_ARG_CHARS
 from .codex_client import project_dir, attached_images, PROJECT_PREAMBLE, _messages_to_prompt
 
 # Folders attached to the current question; CLIs that sandbox file reads need them allowed.
@@ -75,7 +76,7 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
         return await openrouter_query(model, messages, timeout)
 
     if provider == "claude":
-        args = ["claude", "-p", "--output-format", "text", "--disallowedTools", CLAUDE_BLOCKED_TOOLS]
+        args = [resolve_bin("claude"), "-p", "--output-format", "text", "--disallowedTools", CLAUDE_BLOCKED_TOOLS]
         if model:
             args += ["--model", model]
         for d in _readable_dirs():
@@ -83,12 +84,30 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
         return await _run_cli(args, _cli_prompt(messages), timeout, f"claude:{model}")
 
     if provider == "antigravity":
-        args = ["agy", "-p", _cli_prompt(messages), "--mode", "plan", "--print-timeout", f"{int(timeout)}s"]
+        # agy only takes the prompt as an argument; long prompts (Stage 2/3) go through a file
+        # so they never hit command-line length limits (32k chars on Windows).
+        prompt = _cli_prompt(messages)
+        prompt_file = None
+        dirs = _readable_dirs()
+        if len(prompt) > MAX_ARG_CHARS:
+            fd, prompt_file = tempfile.mkstemp(suffix=".md", prefix="llm-council-prompt-")
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(prompt)
+            dirs.append(os.path.dirname(prompt_file))
+            prompt = (
+                f"Read the file {prompt_file} in full. It contains your complete task. "
+                "Follow its instructions exactly and reply with only the answer it asks for."
+            )
+        args = [resolve_bin("agy"), f"-p={prompt}", "--mode", "plan", "--print-timeout", f"{int(timeout)}s"]
         if model:
             args += ["--model", model]
-        for d in _readable_dirs():
+        for d in dirs:
             args += ["--add-dir", d]
-        return await _run_cli(args, None, timeout + 30, f"antigravity:{model}")
+        try:
+            return await _run_cli(args, None, timeout + 30, f"antigravity:{model}")
+        finally:
+            if prompt_file:
+                os.remove(prompt_file)
 
     print(f"Unknown provider: {provider}")
     return None

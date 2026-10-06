@@ -184,13 +184,13 @@ def catalog() -> List[Dict[str, Any]]:
 def list_installed() -> List[Dict[str, Any]]:
     if not os.path.exists(SKILLS_PATH):
         return []
-    with open(SKILLS_PATH) as f:
+    with open(SKILLS_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save(skills: List[Dict[str, Any]]):
     os.makedirs(os.path.dirname(SKILLS_PATH), exist_ok=True)
-    with open(SKILLS_PATH, "w") as f:
+    with open(SKILLS_PATH, "w", encoding="utf-8") as f:
         json.dump(skills, f, indent=2, ensure_ascii=False)
 
 

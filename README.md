@@ -124,6 +124,23 @@ A interface foi redesenhada com o tema de uma sessão de conselho:
 
 A interface está em português (pt-BR) e inglês. O botão **EN / PT** ao lado do nome do app troca o idioma na hora, e a escolha fica salva no navegador. Na primeira visita, o idioma segue o do navegador. Os textos ficam em `frontend/src/i18n.jsx`.
 
+## Sistemas operacionais
+
+Funciona em **macOS**, **Linux** e **Windows**.
+
+| | macOS | Linux | Windows |
+|---|---|---|---|
+| Iniciar | `./start.sh` | `./start.sh` | `.\start.ps1` (PowerShell) |
+| Botão "Escolher…" de pasta | Nativo | `zenity` ou `kdialog` (senão, digite o caminho) | Nativo |
+| Anexar vídeos | Requer `ffmpeg` | Requer `ffmpeg` | Requer `ffmpeg` no PATH |
+
+- Os programas de IA (`codex`, `claude`, `agy`) são encontrados pelo PATH, inclusive os `.cmd` que o npm instala no Windows.
+- Perguntas longas para o Antigravity vão por um arquivo temporário, porque ele só aceita a pergunta como argumento e o Windows limita o tamanho do comando.
+- Os arquivos de dados são lidos e gravados em UTF-8 em todos os sistemas.
+- Por segurança, o backend escuta só em `127.0.0.1`: ele usa os seus logins de IA e pode ler pastas locais, então não deve ficar acessível na rede. Para mudar, defina `LLM_COUNCIL_HOST`.
+
+No Windows, se o PowerShell bloquear o script, rode `powershell -ExecutionPolicy Bypass -File .\start.ps1`.
+
 ## Como rodar
 
 Pré-requisitos: [uv](https://docs.astral.sh/uv/), Node.js e o Codex CLI instalado e logado (`codex login`).

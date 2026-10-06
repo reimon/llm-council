@@ -130,6 +130,12 @@ This strict format allows reliable parsing while still getting thoughtful evalua
 ### Relative Imports
 All backend modules use relative imports (e.g., `from .config import ...`) not absolute imports. This is critical for Python's module system to work correctly when running as `python -m backend.main`.
 
+### Cross-platform
+- `platform_utils.resolve_bin()` returns full CLI paths (Windows needs them for npm `.cmd` shims); always use it when spawning `codex`, `claude`, `agy`, `ffmpeg`
+- Open text files with `encoding="utf-8"` (Windows defaults to cp1252)
+- `agy` takes the prompt only as an argument: prompts over `MAX_ARG_CHARS` are written to a temp file the model is told to read
+- Backend binds `127.0.0.1` (override with `LLM_COUNCIL_HOST`); `start.ps1` is the Windows launcher
+
 ### Port Configuration
 - Backend: 8001 (changed from 8000 to avoid conflict)
 - Frontend: 5173 (Vite default)
