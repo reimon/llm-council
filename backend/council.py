@@ -8,21 +8,50 @@ from .providers import query_member
 from .skills import skills_prompt
 
 
+import time
+
 async def query_members_parallel(
     members: List[Dict[str, Any]],
     build_messages,
+    on_event=None,
+    stage: int = 1,
 ) -> List[Tuple[Dict[str, Any], Any]]:
     """Query each seat in parallel; build_messages(member) lets each seat get its own prompt."""
-    responses = await asyncio.gather(*[query_member(m, build_messages(m)) for m in members])
-    return list(zip(members, responses))
+    async def _query_one(member):
+        if on_event:
+            await on_event({
+                "type": "model_start",
+                "stage": stage,
+                "model": member["name"],
+                "role": member.get("role", "generalist"),
+                "provider": member.get("provider", ""),
+            })
+        t0 = time.time()
+        resp = await query_member(member, build_messages(member))
+        elapsed = round(time.time() - t0, 1)
+        if on_event:
+            await on_event({
+                "type": "model_complete",
+                "stage": stage,
+                "model": member["name"],
+                "role": member.get("role", "generalist"),
+                "provider": member.get("provider", ""),
+                "duration": elapsed,
+                "success": resp is not None,
+            })
+        return (member, resp)
+
+    responses = await asyncio.gather(*[_query_one(m) for m in members])
+    return responses
 
 
-async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
+async def stage1_collect_responses(user_query: str, on_event=None) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
+        on_event: Optional async callback for progress events
 
     Returns:
         List of dicts with 'model' and 'response' keys
@@ -35,7 +64,7 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
         return [{"role": "user", "content": content}]
 
     # Query all seats in parallel, each with its role
-    responses = await query_members_parallel(active_members(), build)
+    responses = await query_members_parallel(active_members(), build, on_event=on_event, stage=1)
 
     # Format results
     stage1_results = []
@@ -52,7 +81,8 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
 
 async def stage2_collect_rankings(
     user_query: str,
-    stage1_results: List[Dict[str, Any]]
+    stage1_results: List[Dict[str, Any]],
+    on_event=None
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
     Stage 2: Each model ranks the anonymized responses.
@@ -60,6 +90,7 @@ async def stage2_collect_rankings(
     Args:
         user_query: The original user query
         stage1_results: Results from Stage 1
+        on_event: Optional async callback for progress events
 
     Returns:
         Tuple of (rankings list, label_to_model mapping)
@@ -113,7 +144,7 @@ Now provide your evaluation and ranking:"""
     messages = [{"role": "user", "content": ranking_prompt}]
 
     # Get rankings from all council seats in parallel (roles do not apply when judging)
-    responses = await query_members_parallel(active_members(), lambda m: messages)
+    responses = await query_members_parallel(active_members(), lambda m: messages, on_event=on_event, stage=2)
 
     # Format results
     stage2_results = []
@@ -133,7 +164,8 @@ Now provide your evaluation and ranking:"""
 async def stage3_synthesize_final(
     user_query: str,
     stage1_results: List[Dict[str, Any]],
-    stage2_results: List[Dict[str, Any]]
+    stage2_results: List[Dict[str, Any]],
+    on_event=None
 ) -> Dict[str, Any]:
     """
     Stage 3: Chairman synthesizes final response.
@@ -142,6 +174,7 @@ async def stage3_synthesize_final(
         user_query: The original user query
         stage1_results: Individual model responses from Stage 1
         stage2_results: Rankings from Stage 2
+        on_event: Optional async callback for progress events
 
     Returns:
         Dict with 'model' and 'response' keys
@@ -178,13 +211,34 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     # Query the chairman
     chairman = load_council()["chairman"]
+    if on_event:
+        await on_event({
+            "type": "model_start",
+            "stage": 3,
+            "model": chairman["name"],
+            "role": "chairman",
+            "provider": chairman.get("provider", ""),
+        })
 
     # Skills attached to the chair shape the synthesis
     chair_skills = skills_prompt(chairman.get("skills", []))
     if chair_skills:
         messages = [{"role": "user", "content": f"{chair_skills}\n\n{chairman_prompt}"}]
 
+    t0 = time.time()
     response = await query_member(chairman, messages)
+    elapsed = round(time.time() - t0, 1)
+
+    if on_event:
+        await on_event({
+            "type": "model_complete",
+            "stage": 3,
+            "model": chairman["name"],
+            "role": "chairman",
+            "provider": chairman.get("provider", ""),
+            "duration": elapsed,
+            "success": response is not None,
+        })
 
     if response is None:
         # Fallback if chairman fails

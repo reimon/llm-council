@@ -161,6 +161,14 @@ function App() {
           stage2: false,
           stage3: false,
         },
+        deliberation: {
+          activeStage: 1,
+          startedAt: Date.now(),
+          completedAt: null,
+          members: [],
+          chairman: null,
+          models: {},
+        },
       };
 
       // Add the partial assistant message
@@ -172,11 +180,85 @@ function App() {
       // Send message with streaming
       await api.sendMessageStream(currentConversationId, content, { attachments, councilId: council?.id }, (eventType, event) => {
         switch (eventType) {
+          case 'council_init':
+            setCurrentConversation((prev) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              if (!lastMsg || lastMsg.role !== 'assistant') return prev;
+              const modelsMap = {};
+              (event.members || []).forEach((m) => {
+                modelsMap[m.name] = {
+                  status: 'thinking',
+                  role: m.role,
+                  model: m.model,
+                  provider: m.provider,
+                  stage: 1,
+                };
+              });
+              lastMsg.deliberation = {
+                activeStage: 1,
+                startedAt: Date.now(),
+                completedAt: null,
+                members: event.members || [],
+                chairman: event.chairman || null,
+                models: modelsMap,
+              };
+              return { ...prev, messages };
+            });
+            break;
+
+          case 'model_start':
+            setCurrentConversation((prev) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              if (!lastMsg?.deliberation) return prev;
+              const prevModel = lastMsg.deliberation.models[event.model] || {};
+              lastMsg.deliberation.models = {
+                ...lastMsg.deliberation.models,
+                [event.model]: {
+                  ...prevModel,
+                  status: 'thinking',
+                  stage: event.stage,
+                  role: event.role || prevModel.role,
+                  provider: event.provider || prevModel.provider,
+                  startedAt: Date.now(),
+                },
+              };
+              return { ...prev, messages };
+            });
+            break;
+
+          case 'model_complete':
+            setCurrentConversation((prev) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              if (!lastMsg?.deliberation) return prev;
+              const prevModel = lastMsg.deliberation.models[event.model] || {};
+              lastMsg.deliberation.models = {
+                ...lastMsg.deliberation.models,
+                [event.model]: {
+                  ...prevModel,
+                  status: event.success ? 'completed' : 'error',
+                  duration: event.duration,
+                  stage: event.stage,
+                },
+              };
+              return { ...prev, messages };
+            });
+            break;
+
           case 'stage1_start':
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
+              if (!lastMsg) return prev;
               lastMsg.loading.stage1 = true;
+              if (lastMsg.deliberation) {
+                lastMsg.deliberation.activeStage = 1;
+                if (event.models && (!lastMsg.deliberation.members || lastMsg.deliberation.members.length === 0)) {
+                  lastMsg.deliberation.members = event.models.map((m) => ({ name: m }));
+                }
+              }
               return { ...prev, messages };
             });
             break;
@@ -185,6 +267,7 @@ function App() {
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
+              if (!lastMsg) return prev;
               lastMsg.stage1 = event.data;
               lastMsg.loading.stage1 = false;
               return { ...prev, messages };
@@ -195,7 +278,16 @@ function App() {
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
+              if (!lastMsg) return prev;
               lastMsg.loading.stage2 = true;
+              if (lastMsg.deliberation) {
+                lastMsg.deliberation.activeStage = 2;
+                const updated = { ...lastMsg.deliberation.models };
+                Object.keys(updated).forEach((k) => {
+                  updated[k] = { ...updated[k], status: 'thinking', stage: 2 };
+                });
+                lastMsg.deliberation.models = updated;
+              }
               return { ...prev, messages };
             });
             break;
@@ -204,6 +296,7 @@ function App() {
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
+              if (!lastMsg) return prev;
               lastMsg.stage2 = event.data;
               lastMsg.metadata = event.metadata;
               lastMsg.loading.stage2 = false;
@@ -215,7 +308,14 @@ function App() {
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
+              if (!lastMsg) return prev;
               lastMsg.loading.stage3 = true;
+              if (lastMsg.deliberation) {
+                lastMsg.deliberation.activeStage = 3;
+                if (event.chairman && !lastMsg.deliberation.chairman) {
+                  lastMsg.deliberation.chairman = { name: event.chairman };
+                }
+              }
               return { ...prev, messages };
             });
             break;
@@ -224,6 +324,7 @@ function App() {
             setCurrentConversation((prev) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
+              if (!lastMsg) return prev;
               lastMsg.stage3 = event.data;
               lastMsg.loading.stage3 = false;
               return { ...prev, messages };
@@ -231,12 +332,19 @@ function App() {
             break;
 
           case 'title_complete':
-            // Reload conversations to get updated title
             loadConversations();
             break;
 
           case 'complete':
-            // Stream complete, reload conversations list
+            setCurrentConversation((prev) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              if (lastMsg?.deliberation) {
+                lastMsg.deliberation.activeStage = 'done';
+                lastMsg.deliberation.completedAt = Date.now();
+              }
+              return { ...prev, messages };
+            });
             loadConversations();
             setIsLoading(false);
             break;
@@ -247,7 +355,7 @@ function App() {
             break;
 
           default:
-            console.log('Unknown event type:', eventType);
+            console.log('Event:', eventType, event);
         }
       });
     } catch (error) {

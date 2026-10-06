@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import CouncilDeliberation from './CouncilDeliberation';
 import Composer, { AttachmentChip } from './Composer';
 import { useLang } from '../i18n';
 import './ChatInterface.css';
@@ -84,23 +85,25 @@ export default function ChatInterface({
                 </div>
               ) : (
                 <div className="assistant-message">
-                  
-                  {/* Stage 1 */}
-                  {msg.loading?.stage1 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>{t('loadingStage1')}</span>
-                    </div>
+                  {/* Council Deliberation 3D HUD & Progress */}
+                  {(msg.loading?.stage1 || msg.loading?.stage2 || msg.loading?.stage3 || msg.deliberation || msg.stage1) && (
+                    <CouncilDeliberation
+                      deliberation={msg.deliberation || (msg.stage1 ? {
+                        activeStage: 'done',
+                        members: msg.stage1.map((s) => ({ name: s.model, role: s.role || 'generalist' })),
+                        chairman: msg.stage3 ? { name: msg.stage3.model } : null,
+                        models: Object.fromEntries(msg.stage1.map((s) => [s.model, { status: 'completed', role: s.role }])),
+                      } : null)}
+                      loading={msg.loading}
+                      isComplete={!msg.loading?.stage1 && !msg.loading?.stage2 && !msg.loading?.stage3 && !!msg.stage3}
+                      project={project}
+                    />
                   )}
+
+                  {/* Stage 1 */}
                   {msg.stage1 && <Stage1 responses={msg.stage1} />}
 
                   {/* Stage 2 */}
-                  {msg.loading?.stage2 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>{t('loadingStage2')}</span>
-                    </div>
-                  )}
                   {msg.stage2 && (
                     <Stage2
                       rankings={msg.stage2}
@@ -110,12 +113,6 @@ export default function ChatInterface({
                   )}
 
                   {/* Stage 3 */}
-                  {msg.loading?.stage3 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>{t('loadingStage3')}</span>
-                    </div>
-                  )}
                   {msg.stage3 && <Stage3 finalResponse={msg.stage3} />}
                 </div>
               )}
@@ -123,7 +120,7 @@ export default function ChatInterface({
           ))
         )}
 
-        {isLoading && (
+        {isLoading && !conversation.messages.some((m) => m.role === 'assistant' && (m.loading?.stage1 || m.loading?.stage2 || m.loading?.stage3 || m.deliberation)) && (
           <div className="loading-indicator">
             <div className="spinner"></div>
             <span>{t('convening')}</span>

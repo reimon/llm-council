@@ -354,68 +354,121 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
     is_first_message = len(conversation["messages"]) == 0
 
     async def event_generator():
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def emit(event_dict: dict):
+            await queue.put(event_dict)
+
+        async def worker():
+            try:
+                # Add user message
+                council_config.selected_council.set(request.council_id)
+                chosen = council_config.load_council()
+                storage.add_user_message(
+                    conversation_id, request.content, request.attachments,
+                    council={"id": chosen["id"], "name": chosen["name"]},
+                )
+
+                # Start title generation in parallel (don't await yet)
+                title_task = None
+                if is_first_message:
+                    title_task = asyncio.create_task(generate_conversation_title(request.content))
+
+                # Point the council at the project folder (title task above stays general)
+                pid = conversation.get("project_id")
+                project = storage.get_project(pid) if pid else None
+                if project and LLM_PROVIDER == "codex":
+                    project_dir.set(project["path"])
+
+                # Fold attachments into the question; images go to the models as files
+                query, images = await attachments_mod.build_context(request.content, request.attachments)
+                attached_images.set(tuple(images))
+                extra_dirs.set(tuple(x["path"] for x in request.attachments if x.get("kind") == "folder"))
+
+                members = council_config.active_members()
+                council_data = council_config.load_council()
+                chairman = council_data.get("chairman", {})
+
+                # Send initial council layout event
+                await emit({
+                    "type": "council_init",
+                    "members": [
+                        {
+                            "name": m["name"],
+                            "role": m.get("role", "generalist"),
+                            "model": m.get("model", ""),
+                            "provider": m.get("provider", ""),
+                        }
+                        for m in members
+                    ],
+                    "chairman": {
+                        "name": chairman.get("name", "Chairman"),
+                        "model": chairman.get("model", ""),
+                        "provider": chairman.get("provider", ""),
+                    },
+                    "project": {
+                        "id": project["id"],
+                        "name": project["name"],
+                        "path": project["path"],
+                    } if project else None,
+                })
+
+                # Stage 1: Collect responses
+                await emit({"type": "stage1_start", "models": [m["name"] for m in members]})
+                stage1_results = await stage1_collect_responses(query, on_event=emit)
+                await emit({"type": "stage1_complete", "data": stage1_results})
+
+                # Stage 2: Collect rankings
+                await emit({"type": "stage2_start", "models": [m["name"] for m in members]})
+                stage2_results, label_to_model = await stage2_collect_rankings(query, stage1_results, on_event=emit)
+                aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
+                await emit({
+                    "type": "stage2_complete",
+                    "data": stage2_results,
+                    "metadata": {"label_to_model": label_to_model, "aggregate_rankings": aggregate_rankings},
+                })
+
+                # Stage 3: Synthesize final answer
+                await emit({"type": "stage3_start", "chairman": chairman.get("name", "Chairman")})
+                stage3_result = await stage3_synthesize_final(query, stage1_results, stage2_results, on_event=emit)
+                await emit({"type": "stage3_complete", "data": stage3_result})
+
+                # Wait for title generation if it was started
+                if title_task:
+                    title = await title_task
+                    storage.update_conversation_title(conversation_id, title)
+                    await emit({"type": "title_complete", "data": {"title": title}})
+
+                # Save complete assistant message
+                storage.add_assistant_message(
+                    conversation_id,
+                    stage1_results,
+                    stage2_results,
+                    stage3_result,
+                    {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}
+                )
+
+                # Send completion event
+                await emit({"type": "complete"})
+
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                await emit({"type": "error", "message": str(e)})
+            finally:
+                await queue.put(None)
+
+        worker_task = asyncio.create_task(worker())
+
         try:
-            # Add user message
-            council_config.selected_council.set(request.council_id)
-            chosen = council_config.load_council()
-            storage.add_user_message(
-                conversation_id, request.content, request.attachments,
-                council={"id": chosen["id"], "name": chosen["name"]},
-            )
-
-            # Start title generation in parallel (don't await yet)
-            title_task = None
-            if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(request.content))
-
-            # Point the council at the project folder (title task above stays general)
-            pid = conversation.get("project_id")
-            project = storage.get_project(pid) if pid else None
-            if project and LLM_PROVIDER == "codex":
-                project_dir.set(project["path"])
-
-            # Fold attachments into the question; images go to the models as files
-            query, images = await attachments_mod.build_context(request.content, request.attachments)
-            attached_images.set(tuple(images))
-            extra_dirs.set(tuple(x["path"] for x in request.attachments if x.get("kind") == "folder"))
-
-            # Stage 1: Collect responses
-            yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
-            stage1_results = await stage1_collect_responses(query)
-            yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
-
-            # Stage 2: Collect rankings
-            yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
-            stage2_results, label_to_model = await stage2_collect_rankings(query, stage1_results)
-            aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
-            yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}})}\n\n"
-
-            # Stage 3: Synthesize final answer
-            yield f"data: {json.dumps({'type': 'stage3_start'})}\n\n"
-            stage3_result = await stage3_synthesize_final(query, stage1_results, stage2_results)
-            yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
-
-            # Wait for title generation if it was started
-            if title_task:
-                title = await title_task
-                storage.update_conversation_title(conversation_id, title)
-                yield f"data: {json.dumps({'type': 'title_complete', 'data': {'title': title}})}\n\n"
-
-            # Save complete assistant message
-            storage.add_assistant_message(
-                conversation_id,
-                stage1_results,
-                stage2_results,
-                stage3_result,
-                {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}
-            )
-
-            # Send completion event
-            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-
-        except Exception as e:
-            # Send error event
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            while True:
+                item = await queue.get()
+                if item is None:
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+        finally:
+            if not worker_task.done():
+                worker_task.cancel()
 
     return StreamingResponse(
         event_generator(),
