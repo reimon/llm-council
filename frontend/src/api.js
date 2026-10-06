@@ -201,6 +201,12 @@ export const api = {
     return response.json();
   },
 
+  async autoconfigureCouncil() {
+    const response = await fetch(`${API_BASE}/api/council/autoconfigure`, { method: 'POST' });
+    if (!response.ok) throw new Error('Failed to configure council');
+    return response.json();
+  },
+
   async testSeat(seat) {
     const response = await fetch(`${API_BASE}/api/council/test`, {
       method: 'POST',

@@ -452,6 +452,24 @@ export default function CouncilRoom({ onClose }) {
     }
   };
 
+  const [autoRunning, setAutoRunning] = useState(false);
+  const runAutoconfigure = async () => {
+    if (dirty && !(await save())) return;
+    setAutoRunning(true);
+    setStatus(t('autoRunning'));
+    try {
+      const result = await api.autoconfigureCouncil();
+      setStatus(result.message);
+      const s = await refreshStore();
+      await openCouncil(result.ok ? result.council.id : s.default_id);
+      if (result.ok) setStatus(result.message);
+    } catch (err) {
+      setStatus(err.message);
+    } finally {
+      setAutoRunning(false);
+    }
+  };
+
   const makeDefault = async (id) => {
     setStore(await api.setDefaultCouncil(id));
   };
@@ -506,6 +524,9 @@ export default function CouncilRoom({ onClose }) {
         </div>
         <div className="room-actions">
           {status && <span className="room-status">{status}</span>}
+          <button type="button" className="room-btn" onClick={runAutoconfigure} disabled={autoRunning}>
+            {autoRunning ? t('autoRunningShort') : t('autoConfigure')}
+          </button>
           <button type="button" className="room-btn" onClick={() => setLibraryOpen(true)}>
             {t('skillLibrary')}
             {installedSkills.length > 0 && <span className="room-count">{installedSkills.length}</span>}

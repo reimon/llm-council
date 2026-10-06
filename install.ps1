@@ -122,6 +122,11 @@ if (-not (Has "codex") -and -not (Has "claude") -and -not (Has "agy")) {
     Say "Nenhum programa de IA instalado ainda: o app abre, mas o conselho nao consegue responder." "Red"
 }
 
+# Build a council from the AI apps that are installed and answer
+Step "Configurando o conselho com os programas de IA encontrados"
+$env:PYTHONIOENCODING = "utf-8"
+uv run python -m backend.autoconfig
+
 # 5. Start
 Step "5/5 Iniciando o app"
 Say "Quando aparecer 'LLM Council is running!', abra http://localhost:5173 no navegador." "Green"

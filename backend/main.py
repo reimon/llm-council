@@ -255,6 +255,14 @@ async def get_providers():
     return await asyncio.to_thread(council_config.list_providers)
 
 
+@app.post("/api/council/autoconfigure")
+async def autoconfigure_council():
+    """Detect installed AI apps, test them and save a council built from the ones that answer."""
+    from .autoconfig import autoconfigure
+    result = await autoconfigure(log=lambda _msg: None)
+    return {k: v for k, v in result.items() if k != "providers"}
+
+
 @app.post("/api/council/test")
 async def test_seat(seat: Dict[str, Any]):
     """Ping one provider/model so the user can check it answers."""

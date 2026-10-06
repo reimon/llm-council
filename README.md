@@ -336,6 +336,17 @@ cd frontend && npm install && cd ..
 
 ### 8. Monte o seu conselho
 
+**Jeito mais rápido:** na câmara, clique em **Configurar automaticamente**. O app procura os programas de IA instalados, testa cada um (só entra quem responde, ou seja, quem está logado), monta o **"Conselho automático"** com um papel diferente para cada conselheiro, escolhe o presidente (Claude Opus quando o Claude Code está disponível) e o deixa como padrão. Leva até alguns minutos. O mesmo pode ser feito pelo terminal, na pasta do projeto:
+
+```bash
+uv run python -m backend.autoconfig
+```
+
+O instalador automático já roda isso no final. Rode de novo sempre que instalar ou logar um programa novo.
+
+Para ajustar à mão:
+
+
 1. Clique em **Configurar conselho**. Você vê a mesa com o presidente (coroa) e os conselheiros.
 2. Clique numa cadeira. Em **Onde roda**, escolha o programa; o app mostra só os instalados e avisa **"Precisa de chave"** quando falta a chave do Gemini CLI.
 3. Escolha o **modelo** e clique em **Testar conexão**. Se aparecer "Respondeu em Xs", está tudo certo.

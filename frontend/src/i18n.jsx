@@ -68,6 +68,9 @@ const STRINGS = {
     roleHeading: 'Papel no conselho',
 
     myCouncils: 'Meus conselhos',
+    autoConfigure: 'Configurar automaticamente',
+    autoRunningShort: 'Testando os programas…',
+    autoRunning: 'Procurando e testando os programas de IA instalados. Pode levar até alguns minutos…',
     mainCouncil: 'Conselho principal',
     newCouncil: 'Novo conselho',
     defaultCouncil: 'padrão',
@@ -266,6 +269,9 @@ const STRINGS = {
     roleHeading: 'Role on the council',
 
     myCouncils: 'My councils',
+    autoConfigure: 'Set up automatically',
+    autoRunningShort: 'Testing apps…',
+    autoRunning: 'Finding and testing the installed AI apps. This can take a few minutes…',
     mainCouncil: 'Main council',
     newCouncil: 'New council',
     defaultCouncil: 'default',

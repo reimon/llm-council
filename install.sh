@@ -63,6 +63,9 @@ install_app "Codex (GPT, conta do ChatGPT)" codex @openai/codex "codex login"
 install_app "Claude Code (Claude, conta da Anthropic)" claude @anthropic-ai/claude-code "claude"
 has agy || say "Para usar Gemini: instale o app Antigravity (https://antigravity.google) e faça login."
 
+step "Configurando o conselho com os programas de IA encontrados"
+uv run python -m backend.autoconfig || true
+
 step "5/5 Iniciando o app"
 say "Abra http://localhost:5173 no navegador. Para usar outro dia: cd $ROOT && ./start.sh"
 exec ./start.sh

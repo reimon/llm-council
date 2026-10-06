@@ -815,3 +815,8 @@ button, textarea { font: inherit; color: inherit; }
 }
 
 .translating { color: var(--council); font-weight: 600; }
+
+/* keep the chamber title readable when a status message sits next to the buttons */
+.room-head .room-title { flex: 1 1 360px; min-width: 280px; }
+.room-actions { flex-wrap: wrap; justify-content: flex-end; }
+.room-status { flex-basis: 100%; text-align: right; order: 10; }
