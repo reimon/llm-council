@@ -29,6 +29,14 @@ async def query_members_parallel(
         t0 = time.time()
         resp = await query_member(member, build_messages(member))
         elapsed = round(time.time() - t0, 1)
+        tokens = 0
+        if resp:
+            content = resp.get("content", "")
+            if resp.get("usage") and isinstance(resp["usage"], dict):
+                tokens = resp["usage"].get("total_tokens") or resp["usage"].get("completion_tokens", 0)
+            if not tokens and content:
+                tokens = max(10, int(len(content.split()) * 1.33))
+
         if on_event:
             await on_event({
                 "type": "model_complete",
@@ -37,6 +45,7 @@ async def query_members_parallel(
                 "role": member.get("role", "generalist"),
                 "provider": member.get("provider", ""),
                 "duration": elapsed,
+                "tokens": tokens,
                 "success": resp is not None,
             })
         return (member, resp)
@@ -228,6 +237,13 @@ Provide a clear, well-reasoned final answer that represents the council's collec
     t0 = time.time()
     response = await query_member(chairman, messages)
     elapsed = round(time.time() - t0, 1)
+    chair_tokens = 0
+    if response:
+        content = response.get("content", "")
+        if response.get("usage") and isinstance(response["usage"], dict):
+            chair_tokens = response["usage"].get("total_tokens") or response["usage"].get("completion_tokens", 0)
+        if not chair_tokens and content:
+            chair_tokens = max(10, int(len(content.split()) * 1.33))
 
     if on_event:
         await on_event({
@@ -237,6 +253,7 @@ Provide a clear, well-reasoned final answer that represents the council's collec
             "role": "chairman",
             "provider": chairman.get("provider", ""),
             "duration": elapsed,
+            "tokens": chair_tokens,
             "success": response is not None,
         })
 

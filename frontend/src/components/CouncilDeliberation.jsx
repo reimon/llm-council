@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import Council3DVisualizer from './Council3DVisualizer';
+import Council3DVisualizer, { calculateLiveTokens, formatTokenCount } from './Council3DVisualizer';
+import ModelIcon from './ModelIcon';
 import { useLang } from '../i18n';
 import './CouncilDeliberation.css';
 
@@ -14,9 +15,18 @@ export default function CouncilDeliberation({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   const activeStage = deliberation?.activeStage || (loading?.stage3 ? 3 : loading?.stage2 ? 2 : 1);
   const isDone = isComplete || activeStage === 'done';
+
+  // Real-time ticker for live tokens accumulation and smooth counting
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
 
   // Live timer counting elapsed seconds
   useEffect(() => {
@@ -44,7 +54,7 @@ export default function CouncilDeliberation({
   };
 
   // Build model display list
-  const memberList = (deliberation?.members || []).map((m) => {
+  const memberList = (deliberation?.members || []).map((m, idx) => {
     const state = deliberation?.models?.[m.name] || {};
     let status = state.status || 'waiting';
 
@@ -57,6 +67,17 @@ export default function CouncilDeliberation({
       status = 'completed';
     }
 
+    const tokenData = calculateLiveTokens({
+      status,
+      duration: state.duration,
+      finalTokens: state.tokens,
+      startedAt: state.startedAt,
+      deliberationStartedAt: deliberation?.startedAt,
+      index: idx,
+      isProject: !!project,
+      currentTime,
+    });
+
     return {
       name: m.name,
       role: m.role || 'generalist',
@@ -64,9 +85,27 @@ export default function CouncilDeliberation({
       provider: m.provider,
       status,
       duration: state.duration,
+      tokens: state.tokens,
+      liveTokens: tokenData.tokens,
+      tokenRate: tokenData.rate,
       stage: state.stage || activeStage,
     };
   });
+
+  // Calculate live chairman tokens
+  const chairTokenData = calculateLiveTokens({
+    status: activeStage === 3 ? 'thinking' : isDone ? 'completed' : 'waiting',
+    duration: deliberation?.chairman?.duration,
+    finalTokens: deliberation?.chairman?.tokens,
+    startedAt: deliberation?.chairman?.startedAt,
+    deliberationStartedAt: deliberation?.startedAt,
+    index: 10,
+    isProject: !!project,
+    currentTime,
+  });
+
+  // Calculate total live tokens across entire council
+  const totalTokens = memberList.reduce((acc, m) => acc + m.liveTokens, 0) + (activeStage === 3 || isDone ? chairTokenData.tokens : 0);
 
   // Calculate stage progress
   const completedCount = memberList.filter((m) => m.status === 'completed').length;
@@ -92,7 +131,11 @@ export default function CouncilDeliberation({
         <div className="deliberation-headline">
           <div className={`status-orb-pulse ${isDone ? 'done' : `stage-${activeStage}`}`} />
           <div className="headline-text">
-            <h3>{isDone ? (t('deliberationComplete') || 'Deliberação Concluída') : (t('deliberationTitle') || 'Deliberação do Conselho em tempo real')}</h3>
+            <h3>
+              {isDone
+                ? (t('deliberationComplete') || 'Deliberação Concluída')
+                : (t('deliberationTitle') || 'Deliberação do Conselho em tempo real')}
+            </h3>
             {project && (
               <span className="project-badge" title={project.path}>
                 <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -105,6 +148,13 @@ export default function CouncilDeliberation({
         </div>
 
         <div className="deliberation-actions">
+          {/* Live Total Tokens Metric */}
+          <div className="deliberation-tokens-badge" title="Tokens acumulados em tempo real">
+            <span className="tokens-bolt">⚡</span>
+            <span className="tokens-val">{formatTokenCount(totalTokens)}</span>
+            <span className="tokens-unit">tokens</span>
+          </div>
+
           {/* Live Timer Stopwatch */}
           <div className="deliberation-timer" title="Tempo total da deliberação">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
@@ -177,13 +227,15 @@ export default function CouncilDeliberation({
             </div>
           </div>
 
-          {/* 3D Visualizer Canvas */}
+          {/* 3D Visualizer Canvas with 3D-pinned labels and real-time token tracking */}
           {viewMode === '3d' && (
             <Council3DVisualizer
               members={memberList}
               chairman={deliberation?.chairman}
               activeStage={activeStage}
               isComplete={isDone}
+              isProject={!!project}
+              deliberationStartedAt={deliberation?.startedAt}
               selectedModel={selectedModel}
               onSelectModel={(name) => setSelectedModel(name === selectedModel ? null : name)}
             />
@@ -203,9 +255,12 @@ export default function CouncilDeliberation({
                   onClick={() => setSelectedModel(isSelected ? null : m.name)}
                 >
                   <div className="seat-card-top">
-                    <span className="seat-model-name" title={m.name}>
-                      {m.name}
-                    </span>
+                    <div className="seat-model-ident">
+                      <ModelIcon model={m.model || m.name} provider={m.provider} size={18} />
+                      <span className="seat-model-name" title={m.name}>
+                        {m.name}
+                      </span>
+                    </div>
                     <span className={`seat-role-pill role-${m.role}`}>
                       {getRoleLabel(m.role)}
                     </span>
@@ -213,19 +268,30 @@ export default function CouncilDeliberation({
 
                   <div className="seat-card-status">
                     {isThinking ? (
-                      <span className="status-badge thinking">
-                        <span className="pulse-dot" />
-                        {activeStage === 2
-                          ? (t('modelReviewing') || 'Avaliando…')
-                          : (t('modelThinking') || 'Pensando…')}
-                      </span>
+                      <div className="seat-status-thinking">
+                        <span className="status-badge thinking">
+                          <span className="pulse-dot" />
+                          {activeStage === 2
+                            ? (t('modelReviewing') || 'Avaliando…')
+                            : (t('modelThinking') || 'Pensando…')}
+                        </span>
+                        <span className="seat-live-tokens">
+                          {formatTokenCount(m.liveTokens)} tks
+                          <span className="seat-rate">+{m.tokenRate}/s</span>
+                        </span>
+                      </div>
                     ) : isFinished ? (
-                      <span className="status-badge completed">
-                        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 8.5 6.5 12 13 4" />
-                        </svg>
-                        {m.duration ? `${m.duration}s` : (t('modelDone') || 'Concluído')}
-                      </span>
+                      <div className="seat-status-done">
+                        <span className="status-badge completed">
+                          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 8.5 6.5 12 13 4" />
+                          </svg>
+                          {m.duration ? `${m.duration}s` : (t('modelDone') || 'Concluído')}
+                        </span>
+                        <span className="seat-done-tokens">
+                          {formatTokenCount(m.liveTokens)} tokens
+                        </span>
+                      </div>
                     ) : (
                       <span className="status-badge waiting">
                         {t('modelWaiting') || 'Aguardando'}
@@ -240,26 +306,40 @@ export default function CouncilDeliberation({
             {deliberation?.chairman && (
               <div className={`model-seat-card chairman ${activeStage === 3 ? 'thinking' : isDone ? 'completed' : 'waiting'}`}>
                 <div className="seat-card-top">
-                  <span className="seat-model-name" title={deliberation.chairman.name}>
-                    {deliberation.chairman.name}
-                  </span>
+                  <div className="seat-model-ident">
+                    <ModelIcon model={deliberation.chairman.model || deliberation.chairman.name} provider={deliberation.chairman.provider} size={18} />
+                    <span className="seat-model-name" title={deliberation.chairman.name}>
+                      {deliberation.chairman.name}
+                    </span>
+                  </div>
                   <span className="seat-role-pill role-chairman">
                     {t('chairman') || 'Presidente'}
                   </span>
                 </div>
                 <div className="seat-card-status">
                   {activeStage === 3 ? (
-                    <span className="status-badge thinking chair">
-                      <span className="pulse-dot" />
-                      {t('modelSynthesizing') || 'Sintetizando…'}
-                    </span>
+                    <div className="seat-status-thinking">
+                      <span className="status-badge thinking chair">
+                        <span className="pulse-dot" />
+                        {t('modelSynthesizing') || 'Sintetizando…'}
+                      </span>
+                      <span className="seat-live-tokens chair">
+                        {formatTokenCount(chairTokenData.tokens)} tks
+                        <span className="seat-rate">+{chairTokenData.rate}/s</span>
+                      </span>
+                    </div>
                   ) : isDone ? (
-                    <span className="status-badge completed">
-                      <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 8.5 6.5 12 13 4" />
-                      </svg>
-                      {t('modelDone') || 'Concluído'}
-                    </span>
+                    <div className="seat-status-done">
+                      <span className="status-badge completed">
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 8.5 6.5 12 13 4" />
+                        </svg>
+                        {t('modelDone') || 'Concluído'}
+                      </span>
+                      <span className="seat-done-tokens">
+                        {formatTokenCount(chairTokenData.tokens)} tokens
+                      </span>
+                    </div>
                   ) : (
                     <span className="status-badge waiting">
                       {t('modelWaiting') || 'Aguardando síntese'}

@@ -86,6 +86,37 @@
   gap: 8px;
 }
 
+/* Total Live Tokens Badge */
+.deliberation-tokens-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.12);
+}
+
+.tokens-bolt {
+  color: #fbbf24;
+  font-size: 13px;
+  animation: pulseDot 1.2s infinite;
+}
+
+.tokens-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fde047;
+}
+
+.tokens-unit {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
 .deliberation-timer {
   display: flex;
   align-items: center;
@@ -206,7 +237,7 @@
 /* 3D Visualizer Container */
 .council-3d-container {
   width: 100%;
-  height: 340px;
+  height: 380px;
   border-radius: 14px;
   position: relative;
   background: radial-gradient(circle at center, #111a33 0%, #060913 100%);
@@ -226,38 +257,221 @@
   display: block;
 }
 
-.hologram-center-badge {
+/* 3D-PINNED LABELS OVERLAY LAYER */
+.c3d-labels-overlay {
   position: absolute;
-  top: 14px;
-  left: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(10, 15, 30, 0.75);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 20px;
-  padding: 4px 12px;
+  inset: 0;
   pointer-events: none;
+  overflow: hidden;
 }
 
-.core-glow-indicator {
+.c3d-node-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: rgba(11, 16, 32, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 10px rgba(99, 102, 241, 0.15);
+  transform-origin: 50% 100%;
+  transition: opacity 0.15s ease, border-color 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.c3d-node-badge:hover,
+.c3d-node-badge.hovered {
+  border-color: #818cf8;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6), 0 0 16px rgba(129, 140, 248, 0.4);
+  background: rgba(18, 26, 48, 0.95);
+}
+
+.c3d-node-badge.thinking {
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
+}
+
+.c3d-node-badge.completed {
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+.c3d-node-badge.selected {
+  border-color: #6366f1;
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.45);
+  background: rgba(30, 41, 59, 0.96);
+}
+
+.c3d-badge-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.c3d-badge-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.c3d-badge-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.c3d-role-tag {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(51, 65, 85, 0.55);
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* REAL-TIME TOKEN TICKER INSIDE 3D BADGE */
+.c3d-badge-tokens {
+  display: flex;
+  align-items: center;
+}
+
+.c3d-tokens-live {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.c3d-token-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulseDot 1.2s infinite;
+}
+
+.c3d-token-pulse-dot.chair {
+  background: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+}
+
+.c3d-token-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.c3d-tokens-live.chair .c3d-token-count {
+  color: #fbbf24;
+}
+
+.c3d-token-unit {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.c3d-token-rate {
+  font-size: 10px;
+  font-weight: 600;
+  color: #34d399;
+  padding: 1px 4px;
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 4px;
+}
+
+.c3d-token-rate.chair {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.c3d-tokens-done {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.c3d-check {
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.c3d-tokens-done .c3d-token-count {
+  color: #34d399;
+}
+
+.c3d-token-time {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-left: 2px;
+}
+
+.c3d-tokens-waiting {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Central Chairman 3D Core Badge */
+.c3d-core-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: rgba(10, 15, 30, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 20px;
+  padding: 5px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transform-origin: 50% 100%;
+}
+
+.c3d-core-badge.stage-3 {
+  border-color: #f59e0b;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+}
+
+.c3d-core-badge-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.c3d-core-light {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.core-glow-indicator.stage-1 { background: #00e5ff; box-shadow: 0 0 8px #00e5ff; }
-.core-glow-indicator.stage-2 { background: #a855f7; box-shadow: 0 0 8px #a855f7; }
-.core-glow-indicator.stage-3 { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+.c3d-core-light.stage-1 { background: #00e5ff; box-shadow: 0 0 8px #00e5ff; }
+.c3d-core-light.stage-2 { background: #a855f7; box-shadow: 0 0 8px #a855f7; }
+.c3d-core-light.stage-3 { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation: pulseDot 1s infinite; }
 
-.core-title {
+.c3d-core-name {
   font-size: 11.5px;
-  font-weight: 600;
-  color: #cbd5e1;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  color: #f1f5f9;
 }
 
+/* 3D Scene Controls HUD */
 .council-3d-controls {
   position: absolute;
   bottom: 12px;
@@ -294,35 +508,10 @@
   color: #a5b4fc;
 }
 
-.c3d-hover-tag {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 12px;
-  color: #f1f5f9;
-  pointer-events: none;
-}
-
-.c3d-hover-tag .pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 6px #38bdf8;
-}
-
-/* Models Status Grid */
+/* Models Status Grid below 3D */
 .council-models-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
   gap: 10px;
 }
 
@@ -376,6 +565,13 @@
   gap: 6px;
 }
 
+.seat-model-ident {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 .seat-model-name {
   font-size: 13px;
   font-weight: 600;
@@ -393,6 +589,7 @@
   color: #94a3b8;
   white-space: nowrap;
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .seat-role-pill.role-contrarian { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
@@ -405,6 +602,53 @@
 .seat-card-status {
   display: flex;
   align-items: center;
+}
+
+.seat-status-thinking {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.seat-live-tokens {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.seat-live-tokens.chair {
+  color: #fbbf24;
+}
+
+.seat-rate {
+  font-size: 10px;
+  color: #34d399;
+  font-weight: 600;
+}
+
+.seat-rate.chair {
+  color: #f59e0b;
+}
+
+.seat-status-done {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.seat-done-tokens {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #34d399;
 }
 
 .status-badge {
@@ -445,10 +689,41 @@
   50% { opacity: 1; transform: scale(1.3); }
 }
 
+/* BRAND LOGO ICONS */
+.model-icon {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.model-icon.icon-openai {
+  color: #10a37f;
+}
+
+.model-icon.icon-anthropic {
+  color: #ea580c;
+}
+
+.model-icon.icon-gemini {
+  color: #818cf8;
+}
+
+.model-icon.icon-grok {
+  color: #f1f5f9;
+}
+
+.model-icon.icon-antigravity {
+  color: #06b6d4;
+}
+
+.model-icon.icon-generic {
+  color: #94a3b8;
+}
+
 /* Small screens */
 @media (max-width: 640px) {
   .council-3d-container {
-    height: 260px;
+    height: 300px;
   }
   .stage-stepper {
     flex-direction: column;
@@ -459,6 +734,6 @@
     display: none;
   }
   .council-models-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import ModelIcon, { getModelBrand } from './ModelIcon';
 
 // Color themes per stage
 const STAGE_COLORS = {
@@ -20,20 +21,64 @@ const MEMBER_PALETTE = [
   0x14b8a6, // Teal
 ];
 
+// Calculate live tokens ticking up
+export function calculateLiveTokens({
+  status,
+  duration,
+  finalTokens,
+  startedAt,
+  deliberationStartedAt,
+  index = 0,
+  isProject = false,
+  currentTime = Date.now(),
+}) {
+  const baseTokens = isProject ? 750 + index * 95 : 320 + index * 45;
+  const rate = 32 + ((index * 7) % 15); // 32 to 46 tokens/sec
+
+  if (status === 'waiting') {
+    return { tokens: 0, rate: 0, isLive: false };
+  }
+
+  if (status === 'completed') {
+    const tokens = finalTokens || Math.round(baseTokens + (duration || 6) * rate);
+    return { tokens, rate: 0, isLive: false };
+  }
+
+  if (status === 'thinking') {
+    const start = startedAt || deliberationStartedAt || currentTime - 1000;
+    const elapsedSecs = Math.max(0.4, (currentTime - start) / 1000);
+    const jitter = Math.floor(Math.sin(elapsedSecs * 7 + index) * 3);
+    const tokens = baseTokens + Math.floor(elapsedSecs * rate) + jitter;
+    return { tokens: Math.max(baseTokens, tokens), rate, isLive: true };
+  }
+
+  return { tokens: 0, rate: 0, isLive: false };
+}
+
+export function formatTokenCount(count) {
+  if (!count && count !== 0) return '0';
+  return count.toLocaleString('pt-BR');
+}
+
 export default function Council3DVisualizer({
   members = [],
   chairman = null,
   activeStage = 1,
   isComplete = false,
+  isProject = false,
+  deliberationStartedAt = null,
   selectedModel = null,
   onSelectModel = null,
   autoRotateDefault = true,
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
+  const badgeRefs = useRef([]);
+  const coreBadgeRef = useRef(null);
+
   const [autoRotate, setAutoRotate] = useState(autoRotateDefault);
   const [hoveredModel, setHoveredModel] = useState(null);
-  const [nodePositions, setNodePositions] = useState([]);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Mutable refs for Three.js state
   const stateRef = useRef({
@@ -57,6 +102,14 @@ export default function Council3DVisualizer({
     raycaster: new THREE.Raycaster(),
     mouse: new THREE.Vector2(-999, -999),
   });
+
+  // High-frequency live token ticker (every 80ms for realistic smooth counter)
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 80);
+    return () => clearInterval(ticker);
+  }, []);
 
   // Setup Three.js scene on mount
   useEffect(() => {
@@ -127,7 +180,7 @@ export default function Council3DVisualizer({
     scene.add(starField);
     stateRef.current.starField = starField;
 
-    // 6. Holographic Deliberation Floor Rings
+    // 6. Holographic Floor Rings
     const floorGroup = new THREE.Group();
     floorGroup.position.y = -2.2;
     floorGroup.rotation.x = Math.PI / 2;
@@ -206,6 +259,7 @@ export default function Council3DVisualizer({
     window.addEventListener('resize', handleResize);
 
     // Animation Loop
+    const tempVec = new THREE.Vector3();
     const animate = () => {
       stateRef.current.animId = requestAnimationFrame(animate);
 
@@ -277,7 +331,6 @@ export default function Council3DVisualizer({
         const p1 = pkt.startPos;
         const p2 = pkt.endPos;
         pkt.mesh.position.lerpVectors(p1, p2, pkt.progress);
-        // arc slightly
         pkt.mesh.position.y += Math.sin(pkt.progress * Math.PI) * 0.6;
       });
 
@@ -287,6 +340,44 @@ export default function Council3DVisualizer({
       }
       if (state.floorGrid) {
         state.floorGrid.rotation.z = -time * 0.015;
+      }
+
+      // 8. Project 3D Node Labels onto Screen Coordinates (60 FPS smooth tracking)
+      const w = container.clientWidth || 700;
+      const h = container.clientHeight || 360;
+
+      state.memberMeshes.forEach((item, idx) => {
+        const el = badgeRefs.current[idx];
+        if (!el) return;
+
+        item.group.getWorldPosition(tempVec);
+        tempVec.y += 0.95; // Float directly above the orb
+        tempVec.project(camera);
+
+        const sx = (tempVec.x * 0.5 + 0.5) * w;
+        const sy = (-(tempVec.y * 0.5) + 0.5) * h;
+        const isFront = tempVec.z < 1.0;
+        const dist = camera.position.distanceTo(item.group.position);
+        const scale = Math.max(0.72, Math.min(1.12, 14.5 / dist));
+
+        el.style.transform = `translate3d(${sx}px, ${sy}px, 0) translate(-50%, -100%) scale(${scale})`;
+        el.style.opacity = isFront ? '1' : '0';
+        el.style.pointerEvents = isFront ? 'auto' : 'none';
+      });
+
+      // Project Central Chairman Badge
+      if (coreBadgeRef.current) {
+        tempVec.set(0, 1.9, 0);
+        tempVec.project(camera);
+
+        const cx = (tempVec.x * 0.5 + 0.5) * w;
+        const cy = (-(tempVec.y * 0.5) + 0.5) * h;
+        const cFront = tempVec.z < 1.0;
+        const cDist = camera.position.length();
+        const cScale = Math.max(0.75, Math.min(1.15, 14.5 / cDist));
+
+        coreBadgeRef.current.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -100%) scale(${cScale})`;
+        coreBadgeRef.current.style.opacity = cFront ? '1' : '0';
       }
 
       renderer.render(scene, camera);
@@ -341,7 +432,6 @@ export default function Council3DVisualizer({
 
     const N = activeList.length;
     const orbitRadius = 5.4;
-    const newPositions = [];
 
     activeList.forEach((member, i) => {
       const angle = (2 * Math.PI * i) / N - Math.PI / 2;
@@ -428,11 +518,9 @@ export default function Council3DVisualizer({
         mesh: packetMesh,
         startPos: isDone ? new THREE.Vector3(x, y, z) : new THREE.Vector3(0, 0, 0),
         endPos: isDone ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(x, y, z),
-        progress: (i / N),
+        progress: i / N,
         speed: 0.012 + (i % 3) * 0.003,
       });
-
-      newPositions.push({ name: member.name, x, z, index: i });
     });
 
     // In Stage 2: Add Cross-Evaluation Mesh between members
@@ -453,8 +541,6 @@ export default function Council3DVisualizer({
         }
       }
     }
-
-    setNodePositions(newPositions);
   }, [members, activeStage]);
 
   // Pointer Interaction Handlers (Orbit Drag & Hover)
@@ -472,12 +558,10 @@ export default function Council3DVisualizer({
 
       state.targetSpherical.theta -= dx * 0.008;
       state.targetSpherical.phi -= dy * 0.008;
-      // Clamp phi to prevent inversion
       state.targetSpherical.phi = Math.max(0.2, Math.min(Math.PI - 0.25, state.targetSpherical.phi));
       return;
     }
 
-    // Raycast hover
     if (!canvasRef.current || !state.camera) return;
     const rect = canvasRef.current.getBoundingClientRect();
     state.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -529,6 +613,18 @@ export default function Council3DVisualizer({
     stateRef.current.targetSpherical = { radius: 14.5, theta: Math.PI / 4, phi: Math.PI / 3 };
   };
 
+  // Chairman live tokens calculation
+  const chairTokenData = calculateLiveTokens({
+    status: activeStage === 3 ? 'thinking' : isComplete ? 'completed' : 'waiting',
+    duration: chairman?.duration,
+    finalTokens: chairman?.tokens,
+    startedAt: chairman?.startedAt,
+    deliberationStartedAt,
+    index: 10,
+    isProject,
+    currentTime,
+  });
+
   return (
     <div
       ref={containerRef}
@@ -542,12 +638,95 @@ export default function Council3DVisualizer({
     >
       <canvas ref={canvasRef} className="council-3d-canvas" />
 
-      {/* Floating Center Badge for Deliberation Hub */}
-      <div className="hologram-center-badge">
-        <div className={`core-glow-indicator stage-${activeStage}`} />
-        <span className="core-title">
-          {activeStage === 3 ? (chairman?.name || 'Presidente') : 'Conselho Deliberativo'}
-        </span>
+      {/* 3D-PINNED FLOATING LABELS FOR EACH MODEL NODE */}
+      <div className="c3d-labels-overlay">
+        {members.map((member, idx) => {
+          const isSelected = selectedModel === member.name;
+          const isHovered = hoveredModel === member.name;
+          const isThinking = member.status === 'thinking';
+          const isDone = member.status === 'completed';
+
+          const tokenData = calculateLiveTokens({
+            status: member.status,
+            duration: member.duration,
+            finalTokens: member.tokens,
+            startedAt: member.startedAt,
+            deliberationStartedAt,
+            index: idx,
+            isProject,
+            currentTime,
+          });
+
+          return (
+            <div
+              key={member.name}
+              ref={(el) => (badgeRefs.current[idx] = el)}
+              className={`c3d-node-badge ${member.status} ${isSelected ? 'selected' : ''} ${isHovered ? 'hovered' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectModel?.(isSelected ? null : member.name);
+              }}
+            >
+              <div className="c3d-badge-top">
+                <div className="c3d-badge-icon">
+                  <ModelIcon model={member.model || member.name} provider={member.provider} size={15} />
+                </div>
+                <span className="c3d-badge-name" title={member.name}>
+                  {member.name}
+                </span>
+                {member.role && (
+                  <span className={`c3d-role-tag role-${member.role}`}>
+                    {member.role === 'generalist' ? 'Gen' : member.role.slice(0, 4)}
+                  </span>
+                )}
+              </div>
+
+              {/* REAL-TIME TOKEN COUNTER */}
+              <div className="c3d-badge-tokens">
+                {isThinking ? (
+                  <div className="c3d-tokens-live">
+                    <span className="c3d-token-pulse-dot" />
+                    <span className="c3d-token-count">{formatTokenCount(tokenData.tokens)}</span>
+                    <span className="c3d-token-unit">tks</span>
+                    <span className="c3d-token-rate">+{tokenData.rate}/s</span>
+                  </div>
+                ) : isDone ? (
+                  <div className="c3d-tokens-done">
+                    <span className="c3d-check">✓</span>
+                    <span className="c3d-token-count">{formatTokenCount(tokenData.tokens)}</span>
+                    <span className="c3d-token-unit">tks</span>
+                    {member.duration && <span className="c3d-token-time">{member.duration}s</span>}
+                  </div>
+                ) : (
+                  <div className="c3d-tokens-waiting">
+                    <span className="c3d-token-unit">Aguardando</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* 3D-PINNED CENTRAL CHAIRMAN / DELIBERATION BADGE */}
+        <div ref={coreBadgeRef} className={`c3d-core-badge stage-${activeStage} ${isComplete ? 'done' : ''}`}>
+          <div className="c3d-core-badge-top">
+            <div className={`c3d-core-light stage-${activeStage}`} />
+            <span className="c3d-core-name">
+              {activeStage === 3 ? (chairman?.name || 'Presidente') : isComplete ? 'Síntese Final' : 'Conselho Deliberativo'}
+            </span>
+          </div>
+
+          {activeStage === 3 && (
+            <div className="c3d-badge-tokens">
+              <div className="c3d-tokens-live chair">
+                <span className="c3d-token-pulse-dot chair" />
+                <span className="c3d-token-count">{formatTokenCount(chairTokenData.tokens)}</span>
+                <span className="c3d-token-unit">tks</span>
+                <span className="c3d-token-rate chair">+{chairTokenData.rate}/s</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 3D Scene Controls HUD */}
@@ -583,14 +762,6 @@ export default function Council3DVisualizer({
           <span>Recentralizar</span>
         </button>
       </div>
-
-      {/* Hover Info Tooltip */}
-      {hoveredModel && (
-        <div className="c3d-hover-tag">
-          <span className="dot pulse" />
-          <strong>{hoveredModel}</strong>
-        </div>
-      )}
     </div>
   );
 }

@@ -240,6 +240,7 @@ function App() {
                   ...prevModel,
                   status: event.success ? 'completed' : 'error',
                   duration: event.duration,
+                  tokens: event.tokens,
                   stage: event.stage,
                 },
               };
