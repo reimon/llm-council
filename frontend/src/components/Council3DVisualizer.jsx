@@ -264,11 +264,14 @@ export default function Council3DVisualizer({
       stateRef.current.animId = requestAnimationFrame(animate);
 
       const state = stateRef.current;
-      const time = state.clock.getElapsedTime();
+      // Seconds since the last frame, so motion speed is the same on 60 Hz and 120 Hz screens.
+      // Capped so a backgrounded tab does not jump when it comes back.
+      const dt = Math.min(state.clock.getDelta(), 0.1);
+      const time = state.clock.elapsedTime;
 
       // Camera Spherical Interpolation
       if (autoRotate && !state.isDragging) {
-        state.targetSpherical.theta += 0.0035;
+        state.targetSpherical.theta += 0.12 * dt; // radians per second
       }
 
       state.spherical.theta += (state.targetSpherical.theta - state.spherical.theta) * 0.08;
@@ -308,9 +311,9 @@ export default function Council3DVisualizer({
         group.position.y = Math.sin(time * bobSpeed + idx * 1.3) * bobAmp;
 
         // Gyro ring spin
-        const ringSpeed = isThinking ? 4.0 : 1.2;
-        gyroRing.rotation.x += 0.015 * ringSpeed;
-        gyroRing.rotation.y += 0.02 * ringSpeed;
+        const ringSpeed = isThinking ? 1.6 : 0.6; // radians per second
+        gyroRing.rotation.x += 0.75 * ringSpeed * dt;
+        gyroRing.rotation.y += ringSpeed * dt;
 
         // Aura pulse
         if (isThinking) {
@@ -325,7 +328,7 @@ export default function Council3DVisualizer({
 
       // Flowing Data Packets
       state.dataPackets.forEach((pkt) => {
-        pkt.progress += pkt.speed;
+        pkt.progress += pkt.speed * dt;
         if (pkt.progress > 1) pkt.progress = 0;
 
         const p1 = pkt.startPos;
@@ -408,19 +411,42 @@ export default function Council3DVisualizer({
     if (state.coreLight) state.coreLight.color.setHex(theme.core);
   }, [activeStage, isComplete]);
 
-  // Rebuild / Update Member Orbs when `members` array changes
+  // The parent re-renders every 80 ms (live token counter) and hands us a fresh `members`
+  // array each time. Only rebuild the scene when something visible actually changed.
+  const membersKey = JSON.stringify(
+    (members || []).map((m) => [m.name, m.role, m.status, m.provider])
+  );
+
+  // Rebuild / Update Member Orbs when the members (or stage) really change
   useEffect(() => {
     const state = stateRef.current;
     if (!state.scene) return;
 
-    // Remove existing member groups and beams
-    state.memberMeshes.forEach((item) => state.scene.remove(item.group));
+    // Remove existing member groups, beams and packets, freeing their GPU buffers
+    const dispose = (obj) =>
+      obj.traverse((child) => {
+        child.geometry?.dispose();
+        if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+        else child.material?.dispose();
+      });
+    const packetProgress = state.dataPackets.map((pkt) => pkt.progress);
+
+    state.memberMeshes.forEach((item) => {
+      state.scene.remove(item.group);
+      dispose(item.group);
+    });
     state.memberMeshes = [];
 
-    state.beamLines.forEach((line) => state.scene.remove(line));
+    state.beamLines.forEach((line) => {
+      state.scene.remove(line);
+      dispose(line);
+    });
     state.beamLines = [];
 
-    state.dataPackets.forEach((pkt) => state.scene.remove(pkt.mesh));
+    state.dataPackets.forEach((pkt) => {
+      state.scene.remove(pkt.mesh);
+      dispose(pkt.mesh);
+    });
     state.dataPackets = [];
 
     const activeList = members.length > 0 ? members : [
@@ -518,8 +544,8 @@ export default function Council3DVisualizer({
         mesh: packetMesh,
         startPos: isDone ? new THREE.Vector3(x, y, z) : new THREE.Vector3(0, 0, 0),
         endPos: isDone ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(x, y, z),
-        progress: i / N,
-        speed: 0.012 + (i % 3) * 0.003,
+        progress: packetProgress[i] ?? i / N, // keep packets where they were across rebuilds
+        speed: 0.22 + (i % 3) * 0.05, // beam lengths per second (about 3 to 4.5 s per trip)
       });
     });
 
@@ -541,7 +567,8 @@ export default function Council3DVisualizer({
         }
       }
     }
-  }, [members, activeStage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membersKey, activeStage]);
 
   // Pointer Interaction Handlers (Orbit Drag & Hover)
   const handlePointerDown = (e) => {
