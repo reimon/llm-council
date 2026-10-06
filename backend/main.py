@@ -49,6 +49,7 @@ class SendMessageRequest(BaseModel):
     """Request to send a message in a conversation."""
     content: str
     attachments: List[Dict[str, Any]] = []
+    council_id: Optional[str] = None
 
 
 class ConversationMetadata(BaseModel):
@@ -143,10 +144,43 @@ async def get_upload(upload_id: str, filename: str):
     return FileResponse(path)
 
 
+@app.get("/api/councils")
+async def list_councils():
+    """Every saved council and which one is the default."""
+    return council_config.list_councils()
+
+
+@app.post("/api/councils")
+async def create_council(body: Dict[str, Any]):
+    """Create a council, empty-ish or as a copy of another (`from_id`)."""
+    try:
+        return council_config.create_council(body.get("name") or "Novo conselho", body.get("from_id"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/councils/{council_id}")
+async def delete_council(council_id: str):
+    try:
+        if not council_config.delete_council(council_id):
+            raise HTTPException(status_code=404, detail="Council not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return council_config.list_councils()
+
+
+@app.post("/api/councils/{council_id}/default")
+async def make_default_council(council_id: str):
+    try:
+        return council_config.set_default(council_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @app.get("/api/council")
-async def get_council():
-    """Current council seats and chairman."""
-    return council_config.load_council()
+async def get_council(id: Optional[str] = None):
+    """One council's seats and chairman (the default when no id is given)."""
+    return council_config.load_council(id)
 
 
 @app.put("/api/council")
@@ -184,10 +218,7 @@ async def uninstall_skill(skill_id: str):
     """Remove a skill from the library and from every seat that uses it."""
     if not skills_mod.uninstall(skill_id):
         raise HTTPException(status_code=404, detail="Skill not installed")
-    council = council_config.load_council()
-    for seat in council["members"] + [council["chairman"]]:
-        seat["skills"] = [s for s in seat.get("skills", []) if s != skill_id]
-    council_config.save_council(council)
+    council_config.strip_skill(skill_id)
     return {"status": "removed"}
 
 
@@ -266,7 +297,12 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
     is_first_message = len(conversation["messages"]) == 0
 
     # Add user message
-    storage.add_user_message(conversation_id, request.content, request.attachments)
+    council_config.selected_council.set(request.council_id)
+    chosen = council_config.load_council()
+    storage.add_user_message(
+        conversation_id, request.content, request.attachments,
+        council={"id": chosen["id"], "name": chosen["name"]},
+    )
 
     # If this is the first message, generate a title
     if is_first_message:
@@ -320,7 +356,12 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
     async def event_generator():
         try:
             # Add user message
-            storage.add_user_message(conversation_id, request.content, request.attachments)
+            council_config.selected_council.set(request.council_id)
+            chosen = council_config.load_council()
+            storage.add_user_message(
+                conversation_id, request.content, request.attachments,
+                council={"id": chosen["id"], "name": chosen["name"]},
+            )
 
             # Start title generation in parallel (don't await yet)
             title_task = None

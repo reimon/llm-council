@@ -59,6 +59,16 @@ Também dá para adicionar cadeiras, tirar alguém de uma sessão sem apagar a c
 
 Requisitos: o `claude` (Claude Code) e o `agy` (Antigravity) precisam estar instalados e logados. Os dois rodam sem permissão de editar arquivos.
 
+### Vários conselhos salvos
+
+Você pode montar e guardar vários conselhos, por exemplo um de **Produto** (PM, CEO e Voz do cliente), um de **Código** (Engenheiro sênior, Segurança e CTO) e um **rápido** com um só modelo leve. Cada um tem as suas cadeiras, papéis, skills e presidente.
+
+- Na câmara, as abas no topo trocam de conselho. **+ Novo conselho** cria um copiando o atual ou começando do zero. O nome e a descrição são editáveis ali mesmo, e há **Usar como padrão** e **Apagar conselho**.
+- No campo de pergunta, o seletor ao lado do **+** escolhe qual conselho responde aquela pergunta. Ele começa no conselho padrão.
+- A pergunta salva mostra a qual conselho ela foi feita ("Perguntado a: Produto").
+
+Os conselhos ficam em `data/councils.json`. Na primeira vez, o conselho que você já tinha vira o "Conselho principal".
+
 ### Skills: especialidades para os conselheiros
 
 Na câmara, o botão **Biblioteca de skills** abre um catálogo de especialidades que você instala e depois dá a qualquer cadeira, inclusive ao presidente. Por exemplo: o Gemini como Contrário **com** as skills de PM e CEO.

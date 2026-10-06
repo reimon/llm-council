@@ -226,6 +226,99 @@ function TestButton({ seat }) {
   );
 }
 
+function CouncilSwitcher({ store, currentId, onSwitch, onCreate, onDelete, onMakeDefault }) {
+  const { t } = useLang();
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const current = store.councils.find((c) => c.id === currentId);
+
+  const create = (fromId) => {
+    if (!name.trim()) return;
+    onCreate(name.trim(), fromId);
+    setCreating(false);
+    setName('');
+  };
+
+  return (
+    <div className="council-switcher">
+      <div className="council-tabs" role="tablist" aria-label={t('myCouncils')}>
+        {store.councils.map((c) => {
+          const active = c.members.filter((m) => m.enabled !== false);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              role="tab"
+              aria-selected={c.id === currentId}
+              className={`council-tab ${c.id === currentId ? 'active' : ''}`}
+              onClick={() => onSwitch(c.id)}
+            >
+              <span className="council-tab-dots" aria-hidden="true">
+                <i style={{ background: CHAIR_COLOR }} />
+                {active.slice(0, 6).map((m) => (
+                  <i key={m.id} style={{ background: ROLE_META[m.role]?.color }} />
+                ))}
+              </span>
+              <span className="council-tab-name">{c.name}</span>
+              {c.id === store.default_id && <span className="council-default">{t('defaultCouncil')}</span>}
+            </button>
+          );
+        })}
+        <button type="button" className="council-tab council-tab-new" onClick={() => setCreating((v) => !v)}>
+          + {t('newCouncil')}
+        </button>
+      </div>
+
+      {creating && (
+        <div className="council-create">
+          <input
+            className="field-input"
+            autoFocus
+            placeholder={t('councilNamePlaceholder')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') create(currentId);
+              if (e.key === 'Escape') setCreating(false);
+            }}
+          />
+          <button type="button" className="room-btn room-save" disabled={!name.trim()} onClick={() => create(currentId)}>
+            {t('copyCurrent', current?.name || '')}
+          </button>
+          <button type="button" className="room-btn" disabled={!name.trim()} onClick={() => create(null)}>
+            {t('startBlank')}
+          </button>
+        </div>
+      )}
+
+      <div className="council-meta-actions">
+        {currentId !== store.default_id && (
+          <button type="button" className="text-btn" onClick={() => onMakeDefault(currentId)}>
+            {t('makeDefault')}
+          </button>
+        )}
+        {store.councils.length > 1 &&
+          (confirmDelete ? (
+            <span className="inline-confirm">
+              {t('deleteCouncilConfirm', current?.name || '')}
+              <button type="button" className="text-btn danger" onClick={() => { setConfirmDelete(false); onDelete(currentId); }}>
+                {t('deleteCouncil')}
+              </button>
+              <button type="button" className="text-btn" onClick={() => setConfirmDelete(false)}>
+                {t('cancel')}
+              </button>
+            </span>
+          ) : (
+            <button type="button" className="text-btn" onClick={() => setConfirmDelete(true)}>
+              {t('deleteCouncil')}
+            </button>
+          ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CouncilRoom({ onClose }) {
   const { t } = useLang();
   const [council, setCouncil] = useState(null);
@@ -235,6 +328,21 @@ export default function CouncilRoom({ onClose }) {
   const [status, setStatus] = useState('');
   const [installedSkills, setInstalledSkills] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [store, setStore] = useState(null);
+
+  const openCouncil = async (id) => {
+    const c = await api.getCouncil(id);
+    setCouncil(c);
+    setSaved(JSON.stringify(c));
+    setSelected('chair');
+    setStatus('');
+  };
+
+  const refreshStore = async () => {
+    const s = await api.listCouncils();
+    setStore(s);
+    return s;
+  };
 
   const refreshSkills = async () => {
     try {
@@ -245,10 +353,7 @@ export default function CouncilRoom({ onClose }) {
   };
 
   useEffect(() => {
-    api.getCouncil().then((c) => {
-      setCouncil(c);
-      setSaved(JSON.stringify(c));
-    });
+    refreshStore().then((s) => openCouncil(s.default_id));
     api.getProviders().then(setProviders).catch(() => setProviders([]));
     refreshSkills();
   }, []);
@@ -311,9 +416,40 @@ export default function CouncilRoom({ onClose }) {
       setCouncil(result);
       setSaved(JSON.stringify(result));
       setStatus(t('saved'));
+      await refreshStore();
+      return true;
+    } catch (err) {
+      setStatus(err.message);
+      return false;
+    }
+  };
+
+  // Unsaved edits are saved before moving to another council
+  const switchCouncil = async (id) => {
+    if (id === council?.id) return;
+    if (dirty && !(await save())) return;
+    await openCouncil(id);
+  };
+
+  const createCouncil = async (name, fromId) => {
+    if (dirty && !(await save())) return;
+    const created = await api.createCouncil(name, fromId);
+    await refreshStore();
+    await openCouncil(created.id);
+  };
+
+  const deleteCouncil = async (id) => {
+    try {
+      const s = await api.deleteCouncil(id);
+      setStore(s);
+      await openCouncil(s.default_id);
     } catch (err) {
       setStatus(err.message);
     }
+  };
+
+  const makeDefault = async (id) => {
+    setStore(await api.setDefaultCouncil(id));
   };
 
   const skillBadges = (ids = []) =>
@@ -347,8 +483,21 @@ export default function CouncilRoom({ onClose }) {
   return (
     <div className="council-room">
       <header className="room-head">
-        <div>
-          <h2>{t('chamberTitle')}</h2>
+        <div className="room-title">
+          <span className="room-kicker">{t('chamberTitle')}</span>
+          <input
+            className="council-name-input"
+            value={council.name || ''}
+            aria-label={t('councilName')}
+            onChange={(e) => setCouncil((c) => ({ ...c, name: e.target.value }))}
+          />
+          <input
+            className="council-desc-input"
+            value={council.description || ''}
+            placeholder={t('councilDescPlaceholder')}
+            aria-label={t('councilDescription')}
+            onChange={(e) => setCouncil((c) => ({ ...c, description: e.target.value }))}
+          />
           <p>{t('chamberSubtitle', activeCount)}</p>
         </div>
         <div className="room-actions">
@@ -365,6 +514,17 @@ export default function CouncilRoom({ onClose }) {
           </button>
         </div>
       </header>
+
+      {store && (
+        <CouncilSwitcher
+          store={store}
+          currentId={council.id}
+          onSwitch={switchCouncil}
+          onCreate={createCouncil}
+          onDelete={deleteCouncil}
+          onMakeDefault={makeDefault}
+        />
+      )}
 
       <div className="room-body">
         <div className="chamber" role="group" aria-label={t('chamberTitle')}>

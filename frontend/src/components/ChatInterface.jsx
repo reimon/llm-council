@@ -68,6 +68,12 @@ export default function ChatInterface({
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   </div>
+                  {msg.council?.name && (
+                    <div className="message-council">
+                      <span className="brand-seats" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+                      {t('askedCouncil', msg.council.name)}
+                    </div>
+                  )}
                   {msg.attachments?.length > 0 && (
                     <div className="chip-row chip-row-sent">
                       {msg.attachments.map((att, i) => (

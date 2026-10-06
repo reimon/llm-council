@@ -117,8 +117,9 @@ export const api = {
     return `${API_BASE}/api/uploads/${uploadId}/${encodeURIComponent(filename)}`;
   },
 
-  async getCouncil() {
-    const response = await fetch(`${API_BASE}/api/council`);
+  async getCouncil(id = null) {
+    const query = id ? `?id=${encodeURIComponent(id)}` : '';
+    const response = await fetch(`${API_BASE}/api/council${query}`);
     if (!response.ok) throw new Error('Failed to load council');
     return response.json();
   },
@@ -132,6 +133,36 @@ export const api = {
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Failed to save council');
     return data;
+  },
+
+  async listCouncils() {
+    const response = await fetch(`${API_BASE}/api/councils`);
+    if (!response.ok) throw new Error('Failed to load councils');
+    return response.json();
+  },
+
+  async createCouncil(name, fromId = null) {
+    const response = await fetch(`${API_BASE}/api/councils`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, from_id: fromId }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Failed to create council');
+    return data;
+  },
+
+  async deleteCouncil(id) {
+    const response = await fetch(`${API_BASE}/api/councils/${id}`, { method: 'DELETE' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Failed to delete council');
+    return data;
+  },
+
+  async setDefaultCouncil(id) {
+    const response = await fetch(`${API_BASE}/api/councils/${id}/default`, { method: 'POST' });
+    if (!response.ok) throw new Error('Failed to set default council');
+    return response.json();
   },
 
   async getSkillCatalog() {
@@ -222,7 +253,11 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content, attachments }),
+        body: JSON.stringify(
+          Array.isArray(attachments)
+            ? { content, attachments }
+            : { content, attachments: attachments?.attachments || [], council_id: attachments?.councilId || null }
+        ),
       }
     );
 

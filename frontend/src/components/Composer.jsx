@@ -41,8 +41,77 @@ export function AttachmentChip({ attachment, onRemove }) {
   );
 }
 
+function CouncilPicker({ value, onChange }) {
+  const { t } = useLang();
+  const [store, setStore] = useState(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    api.listCouncils().then((s) => {
+      setStore(s);
+      if (!value) {
+        const def = s.councils.find((c) => c.id === s.default_id) || s.councils[0];
+        onChange({ id: def.id, name: def.name });
+      }
+    }).catch(() => setStore(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => !ref.current?.contains(e.target) && setOpen(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  if (!store || store.councils.length === 0) return null;
+
+  return (
+    <div className="council-picker" ref={ref}>
+      <button
+        type="button"
+        className="council-picker-btn"
+        aria-expanded={open}
+        aria-label={t('councilForQuestion')}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="brand-seats" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+        <span className="council-picker-name">{value?.name || '…'}</span>
+        <span className="chevron open" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="attach-menu council-menu" role="menu">
+          <p className="council-menu-title">{t('councilForQuestion')}</p>
+          {store.councils.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value?.id === c.id}
+              className={value?.id === c.id ? 'checked' : ''}
+              onClick={() => {
+                onChange({ id: c.id, name: c.name });
+                setOpen(false);
+              }}
+            >
+              <span className="council-menu-name">
+                {c.name}
+                {c.id === store.default_id && <span className="council-default">{t('defaultCouncil')}</span>}
+              </span>
+              <small>{t('seatsSummary', c.members.filter((m) => m.enabled !== false).length, c.chairman?.name)}</small>
+              {c.description && <small>{c.description}</small>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Composer({ onSend, disabled, placeholder }) {
   const { t } = useLang();
+  const [council, setCouncil] = useState(null);
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -108,7 +177,7 @@ export default function Composer({ onSend, disabled, placeholder }) {
     e?.preventDefault();
     if (!canSend) return;
     // eslint-disable-next-line no-unused-vars
-    onSend(text, ready.map(({ key, status, ...rest }) => rest));
+    onSend(text, ready.map(({ key, status, ...rest }) => rest), council);
     setText('');
     setAttachments([]);
   };
@@ -233,6 +302,7 @@ export default function Composer({ onSend, disabled, placeholder }) {
             }}
           />
         </div>
+        <CouncilPicker value={council} onChange={setCouncil} />
         <span className="composer-hint">
           {uploading ? t('uploading') : t('enterHint')}
         </span>
