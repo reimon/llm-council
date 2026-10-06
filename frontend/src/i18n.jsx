@@ -66,6 +66,7 @@ const STRINGS = {
     roleHeading: 'Papel no conselho',
 
     myCouncils: 'Meus conselhos',
+    mainCouncil: 'Conselho principal',
     newCouncil: 'Novo conselho',
     defaultCouncil: 'padrão',
     councilNamePlaceholder: 'Nome do conselho, ex.: Produto',
@@ -260,6 +261,7 @@ const STRINGS = {
     roleHeading: 'Role on the council',
 
     myCouncils: 'My councils',
+    mainCouncil: 'Main council',
     newCouncil: 'New council',
     defaultCouncil: 'default',
     councilNamePlaceholder: 'Council name, e.g. Product',
@@ -393,6 +395,8 @@ const STRINGS = {
 
 // Titles the backend assigns before the real title is generated
 const PLACEHOLDER_TITLES = new Set(['Nova conversa', 'New Conversation']);
+// Name the backend gives the first council; shown in the current language until renamed
+const DEFAULT_COUNCIL_NAMES = new Set(['Conselho principal', 'Main council']);
 
 const LangContext = createContext(null);
 
@@ -423,9 +427,10 @@ export function LangProvider({ children }) {
     return typeof value === 'function' ? value(...args) : value;
   };
   const title = (raw) => (!raw || PLACEHOLDER_TITLES.has(raw) ? t('untitled') : raw);
+  const councilLabel = (raw) => (DEFAULT_COUNCIL_NAMES.has(raw) ? t('mainCouncil') : raw || '');
   const toggle = () => setLang((l) => (l === 'pt' ? 'en' : 'pt'));
 
-  return <LangContext.Provider value={{ lang, t, title, toggle }}>{children}</LangContext.Provider>;
+  return <LangContext.Provider value={{ lang, t, title, councilLabel, toggle }}>{children}</LangContext.Provider>;
 }
 
 export const useLang = () => useContext(LangContext);

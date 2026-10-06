@@ -14,7 +14,7 @@ export default function ChatInterface({
   onRetryDeliberation,
   isLoading,
 }) {
-  const { t } = useLang();
+  const { t, councilLabel } = useLang();
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -84,7 +84,7 @@ export default function ChatInterface({
                   {msg.council?.name && (
                     <div className="message-council">
                       <span className="brand-seats" aria-hidden="true"><i /><i /><i /><i /><i /></span>
-                      {t('askedCouncil', msg.council.name)}
+                      {t('askedCouncil', councilLabel(msg.council.name))}
                     </div>
                   )}
                   {msg.attachments?.length > 0 && (

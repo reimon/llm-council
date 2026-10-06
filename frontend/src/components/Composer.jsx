@@ -42,7 +42,7 @@ export function AttachmentChip({ attachment, onRemove }) {
 }
 
 function CouncilPicker({ value, onChange }) {
-  const { t } = useLang();
+  const { t, councilLabel } = useLang();
   const [store, setStore] = useState(null);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -77,7 +77,7 @@ function CouncilPicker({ value, onChange }) {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="brand-seats" aria-hidden="true"><i /><i /><i /><i /><i /></span>
-        <span className="council-picker-name">{value?.name || '…'}</span>
+        <span className="council-picker-name">{value?.name ? councilLabel(value.name) : '…'}</span>
         <span className="chevron open" aria-hidden="true" />
       </button>
       {open && (
@@ -96,7 +96,7 @@ function CouncilPicker({ value, onChange }) {
               }}
             >
               <span className="council-menu-name">
-                {c.name}
+                {councilLabel(c.name)}
                 {c.id === store.default_id && <span className="council-default">{t('defaultCouncil')}</span>}
               </span>
               <small>{t('seatsSummary', c.members.filter((m) => m.enabled !== false).length, c.chairman?.name)}</small>

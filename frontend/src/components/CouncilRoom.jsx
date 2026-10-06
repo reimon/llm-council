@@ -227,7 +227,7 @@ function TestButton({ seat }) {
 }
 
 function CouncilSwitcher({ store, currentId, onSwitch, onCreate, onDelete, onMakeDefault }) {
-  const { t } = useLang();
+  const { t, councilLabel } = useLang();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -260,7 +260,7 @@ function CouncilSwitcher({ store, currentId, onSwitch, onCreate, onDelete, onMak
                   <i key={m.id} style={{ background: ROLE_META[m.role]?.color }} />
                 ))}
               </span>
-              <span className="council-tab-name">{c.name}</span>
+              <span className="council-tab-name">{councilLabel(c.name)}</span>
               {c.id === store.default_id && <span className="council-default">{t('defaultCouncil')}</span>}
             </button>
           );
@@ -284,7 +284,7 @@ function CouncilSwitcher({ store, currentId, onSwitch, onCreate, onDelete, onMak
             }}
           />
           <button type="button" className="room-btn room-save" disabled={!name.trim()} onClick={() => create(currentId)}>
-            {t('copyCurrent', current?.name || '')}
+            {t('copyCurrent', councilLabel(current?.name))}
           </button>
           <button type="button" className="room-btn" disabled={!name.trim()} onClick={() => create(null)}>
             {t('startBlank')}
@@ -301,7 +301,7 @@ function CouncilSwitcher({ store, currentId, onSwitch, onCreate, onDelete, onMak
         {store.councils.length > 1 &&
           (confirmDelete ? (
             <span className="inline-confirm">
-              {t('deleteCouncilConfirm', current?.name || '')}
+              {t('deleteCouncilConfirm', councilLabel(current?.name))}
               <button type="button" className="text-btn danger" onClick={() => { setConfirmDelete(false); onDelete(currentId); }}>
                 {t('deleteCouncil')}
               </button>
@@ -320,7 +320,7 @@ function CouncilSwitcher({ store, currentId, onSwitch, onCreate, onDelete, onMak
 }
 
 export default function CouncilRoom({ onClose }) {
-  const { t } = useLang();
+  const { t, councilLabel } = useLang();
   const [council, setCouncil] = useState(null);
   const [saved, setSaved] = useState(null);
   const [providers, setProviders] = useState([]);
@@ -487,7 +487,7 @@ export default function CouncilRoom({ onClose }) {
           <span className="room-kicker">{t('chamberTitle')}</span>
           <input
             className="council-name-input"
-            value={council.name || ''}
+            value={councilLabel(council.name)}
             aria-label={t('councilName')}
             onChange={(e) => setCouncil((c) => ({ ...c, name: e.target.value }))}
           />
