@@ -76,6 +76,18 @@ button, textarea { font: inherit; color: inherit; }
 }
 .conversation-item:hover { background: rgba(255,255,255,0.06); }
 .conversation-item.active { background: rgba(255,255,255,0.1); border-left-color: #e1b75a; }
+.conversation-item { position: relative; padding-right: 40px; }
+.delete-conversation-btn {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: #8a92a8;
+  cursor: pointer; opacity: 0;
+}
+.conversation-item:hover .delete-conversation-btn,
+.conversation-item:focus-within .delete-conversation-btn,
+.delete-conversation-btn:focus-visible { opacity: 1; }
+.delete-conversation-btn:hover { background: rgba(240, 96, 96, 0.16); color: #ff8f8f; }
+@media (hover: none) { .delete-conversation-btn { opacity: 1; } }
 .conversation-title {
   font-size: 14px; color: #f2f4fa;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
