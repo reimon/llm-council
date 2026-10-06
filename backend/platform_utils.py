@@ -25,8 +25,11 @@ def _extra_bin_dirs():
         local = os.environ.get("LOCALAPPDATA", os.path.join(home, "AppData", "Local"))
         dirs += [
             os.path.join(appdata, "npm"),
+            # Antigravity CLI (agy) official Windows installer locations
+            os.path.join(local, "Antigravity"),
+            os.path.join(local, "Antigravity", "bin"),
+            os.path.join(local, "agy", "bin"),
             os.path.join(local, "Programs", "Antigravity", "bin"),
-            os.path.join(local, "Programs", "antigravity", "bin"),
         ]
     else:
         dirs += ["/opt/homebrew/bin", "/usr/local/bin", os.path.join(home, ".npm-global", "bin")]

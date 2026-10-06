@@ -324,11 +324,12 @@ cd frontend && npm install && cd ..
 |---|---|---|---|
 | **Codex CLI** | GPT (OpenAI) | `npm install -g @openai/codex` | `codex login` (conta ChatGPT) |
 | **Claude Code** | Claude (Anthropic) | `npm install -g @anthropic-ai/claude-code` | rode `claude` e siga o login |
-| **Antigravity** | Gemini, Claude e outros | instale o app Antigravity (traz o comando `agy`) | faça login no app |
+| **Antigravity CLI** | Gemini, Claude e outros | Windows: `powershell -ExecutionPolicy ByPass -c "irm https://antigravity.google/cli/install.ps1 \| iex"` · macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh \| bash` | rode `agy` e entre com a conta Google |
 | **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | chave gratuita (veja abaixo) |
 
 - O login de cada um é feito **por você**, uma vez, no terminal ou no app. O LLM Council só usa o login que já existe.
 - O uso conta no limite do seu plano em cada serviço (ChatGPT, Claude, Google).
+- **Atenção:** o LLM Council usa os programas **de terminal**. O app de desktop do Claude não é o Claude Code, e o editor Antigravity (IDE) não traz o comando `agy`: instale-os como na tabela. Para conferir, rode `where claude` e `where agy` (Windows) ou `which claude` e `which agy` (macOS/Linux).
 - **Gemini:** há dois caminhos.
   - **Antigravity:** funciona com o login normal da sua conta Google, mas leva de 40 a 60 segundos por resposta, mesmo para perguntas curtas. Se você não usa as ferramentas de dados do Google Cloud, desligar os servidores MCP da extensão Data Cloud (`agy mcp list` e `agy mcp disable <nome>`) acelera o início.
   - **Gemini CLI:** mais rápido, mas o Google **não aceita mais login com conta pessoal** nele (aparece "This client is no longer supported for Gemini Code Assist for individuals"). Ele só funciona com uma **chave de API gratuita**: crie em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e salve no arquivo `~/.gemini/.env` (no Windows, `%USERPROFILE%\.gemini\.env`) assim: `GEMINI_API_KEY=sua-chave`. Depois rode `gemini` uma vez e escolha **2. Use Gemini API Key**. A chave gratuita tem limite de uso.

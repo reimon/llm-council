@@ -115,8 +115,19 @@ foreach ($app in $apps) {
         }
     }
 }
-if (-not (Has "agy")) {
-    Say "Para usar Gemini: instale o app Antigravity (https://antigravity.google), abra e faca login com a conta Google." "Yellow"
+if (Has "agy") {
+    Say "Antigravity CLI (Gemini, usa a conta Google): ja instalado"
+} elseif (Ask "Instalar Antigravity CLI (Gemini, usa a conta Google)?") {
+    # Official installer; the command is "agy" (the Antigravity editor app does not include it)
+    powershell -ExecutionPolicy ByPass -c "irm https://antigravity.google/cli/install.ps1 | iex"
+    Refresh-Path
+    $env:Path = "$env:Path;$env:LOCALAPPDATA\Antigravity;$env:LOCALAPPDATA\agy\bin"
+    if (Has "agy") {
+        Say "Agora faca o login com a conta Google (abre o navegador). Ao terminar, saia com Ctrl+C." "Yellow"
+        agy
+    } else {
+        Say "Nao consegui instalar o Antigravity CLI. Veja https://antigravity.google/cli" "Red"
+    }
 }
 if (-not (Has "codex") -and -not (Has "claude") -and -not (Has "agy")) {
     Say "Nenhum programa de IA instalado ainda: o app abre, mas o conselho nao consegue responder." "Red"

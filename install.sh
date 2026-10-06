@@ -61,7 +61,12 @@ install_app() {  # $1 name, $2 command, $3 npm package, $4 login command
 }
 install_app "Codex (GPT, conta do ChatGPT)" codex @openai/codex "codex login"
 install_app "Claude Code (Claude, conta da Anthropic)" claude @anthropic-ai/claude-code "claude"
-has agy || say "Para usar Gemini: instale o app Antigravity (https://antigravity.google) e faça login."
+if has agy; then say "Antigravity CLI: já instalado"
+elif ask "Instalar Antigravity CLI (Gemini, conta Google)?"; then
+  curl -fsSL https://antigravity.google/cli/install.sh | bash || true
+  export PATH="$HOME/.local/bin:$PATH"
+  has agy && { say "Faça o login com a conta Google (abre o navegador); depois saia com Ctrl+C."; agy </dev/tty || true; }
+fi
 
 step "Configurando o conselho com os programas de IA encontrados"
 uv run python -m backend.autoconfig || true
