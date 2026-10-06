@@ -234,6 +234,8 @@ agy --version
 agy
 ```
 
+O login fica salvo neste computador. Se você já instalou o `agy`, rode o `install.ps1` novamente e aceite a opção de abrir a CLI para fazer ou confirmar o login neste Windows. O login feito no Mac não é compartilhado com o Windows.
+
 O aplicativo Antigravity IDE pode ser instalado separadamente pela [página oficial](https://www.antigravity.google/download).
 
 Se algum `npm install -g` der erro de permissão (`EPERM` ou `EACCES`), abra o Prompt **como administrador** (tecla Windows, digite **cmd**, clique com o botão direito em Prompt de Comando, **Executar como administrador**) e repita o comando.
@@ -360,7 +362,7 @@ cd frontend && npm install && cd ..
 | **Antigravity CLI** | Gemini, Claude e outros | Windows: `install-agy.cmd` na pasta do projeto · macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh \| bash` | rode `agy` e entre com a conta Google |
 | **Gemini CLI** | Gemini (Google) | `npm install -g @google/gemini-cli` | chave gratuita (veja abaixo) |
 
-- O login de cada um é feito **por você**, uma vez, no terminal ou no app. O LLM Council só usa o login que já existe.
+- O login de cada um é feito **por você**, uma vez por computador, no terminal ou no app. O LLM Council só usa o login que já existe naquele sistema.
 - O uso conta no limite do seu plano em cada serviço (ChatGPT, Claude, Google).
 - **Atenção:** o LLM Council usa os programas **de terminal**. O app de desktop do Claude não é o Claude Code, e o editor Antigravity (IDE) não traz o comando `agy`: instale-os como na tabela. Para conferir, rode `where claude` e `where agy` (Windows) ou `which claude` e `which agy` (macOS/Linux).
 - **Gemini:** há dois caminhos.

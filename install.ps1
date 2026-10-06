@@ -119,6 +119,10 @@ $agyBin = Join-Path $env:LOCALAPPDATA "agy\bin"
 if (Test-Path $agyBin) { $env:Path = "$agyBin;$env:Path" }
 if (Has "agy") {
     Say "Antigravity CLI (Gemini, usa a conta Google): ja instalado"
+    if (Ask "Abrir Antigravity CLI para fazer ou confirmar o login Google neste Windows?") {
+        Say "Conclua o login na janela do Antigravity CLI. Depois, saia com Ctrl+C para continuar." "Yellow"
+        agy
+    }
 } elseif (Ask "Instalar Antigravity CLI (Gemini, usa a conta Google)?") {
     # The helper runs the official installer and verifies agy.exe even when PATH is stale.
     & (Join-Path $Root "install-agy.cmd")
