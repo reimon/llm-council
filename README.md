@@ -191,6 +191,13 @@ codex --version
 npm install -g @anthropic-ai/claude-code
 ```
 
+Se o npm avisar que bloqueou o script `postinstall` do Claude Code (`allow-scripts`), autorize os scripts desse pacote e reinstale:
+
+```bash
+npm config set allow-scripts=@anthropic-ai/claude-code --location=user
+npm install -g @anthropic-ai/claude-code
+```
+
 ```bash
 claude
 ```
