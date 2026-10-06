@@ -570,6 +570,7 @@ export default function CouncilRoom({ onClose }) {
                   <li key={p.id} className={p.installed && !p.needs_login ? 'good' : 'bad'}>
                     <b>{p.label}</b>{' '}
                     {!p.installed ? t('notInstalled') : p.needs_login ? t('needsLogin') : t('autoFoundAt', p.path, p.models)}
+                    {p.model_error && <code>{p.model_error}</code>}
                   </li>
                 ))}
               </ul>

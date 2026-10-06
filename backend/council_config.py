@@ -80,6 +80,7 @@ def gemini_cli_logged_in() -> bool:
 CLAUDE_MODELS = ["fable", "opus", "sonnet", "haiku"]
 
 _models_cache: Dict[str, Any] = {}
+_models_errors: Dict[str, str] = {}
 
 
 def _codex_models() -> List[str]:
@@ -93,11 +94,16 @@ def _codex_models() -> List[str]:
 
 def _antigravity_models() -> List[str]:
     try:
-        out = subprocess.run([resolve_bin("agy"), "models"], capture_output=True, text=True, timeout=60).stdout
-    except Exception:
+        result = subprocess.run(
+            [resolve_bin("agy"), "models"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=60,
+        )
+    except Exception as exc:
+        _models_errors["antigravity"] = f"Não foi possível executar 'agy models': {exc}"
         return []
-    # `agy models` renders columns separated by spaces (including on Windows),
-    # not tabs. Keep only model-slug rows and ignore headings or status text.
+    out = "\n".join(part for part in (result.stdout, result.stderr) if part)
+    # `agy models` may separate columns with tabs or spaces. Keep only model-slug
+    # rows and ignore headings or status text.
     models = []
     for line in out.splitlines():
         fields = line.strip().split()
@@ -106,6 +112,14 @@ def _antigravity_models() -> List[str]:
         slug = fields[0]
         if slug[0].islower() and "-" in slug and all(c.islower() or c.isdigit() or c == "-" for c in slug):
             models.append(slug)
+    if models:
+        _models_errors.pop("antigravity", None)
+    else:
+        detail = out.strip()
+        _models_errors["antigravity"] = (
+            detail[-400:] if detail else
+            f"'agy models' terminou com código {result.returncode} e não listou modelos."
+        )
     return models
 
 
@@ -127,8 +141,13 @@ def list_providers() -> List[Dict[str, Any]]:
                 models = cached[1]
             else:
                 models = fetchers[pid]()
-                _models_cache[pid] = (time.time(), models)
+                # Don't cache empty results: Antigravity may not be logged in on
+                # the first request, and an empty list would otherwise linger for 10 minutes.
+                if models:
+                    _models_cache[pid] = (time.time(), models)
         entry = {"id": pid, "label": info["label"], "installed": installed, "models": models}
+        if pid == "antigravity" and installed and _models_errors.get(pid):
+            entry["model_error"] = _models_errors[pid]
         if pid == "gemini" and installed and not gemini_cli_logged_in():
             entry["needs_login"] = True
         result.append(entry)
