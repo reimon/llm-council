@@ -22,6 +22,18 @@ Um comando só instala tudo o que falta (Git, Node.js, uv), baixa o projeto, ins
 powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/reimon/llm-council/master/install.ps1 | iex"
 ```
 
+Se aparecer **"Access is denied"** e o projeto já estiver baixado, rode o instalador local dentro da pasta `llm-council`:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Se o acesso continuar negado, confira as políticas do PowerShell:
+
+```bash
+powershell -NoProfile -Command "Get-ExecutionPolicy -List"
+```
+
 **macOS / Linux:** abra o **Terminal** e rode:
 
 ```bash
