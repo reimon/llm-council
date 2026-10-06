@@ -118,10 +118,15 @@ foreach ($app in $apps) {
 if (Has "agy") {
     Say "Antigravity CLI (Gemini, usa a conta Google): ja instalado"
 } elseif (Ask "Instalar Antigravity CLI (Gemini, usa a conta Google)?") {
-    # Official installer; the command is "agy" (the Antigravity editor app does not include it)
-    powershell -ExecutionPolicy ByPass -c "irm https://antigravity.google/cli/install.ps1 | iex"
+    # A CLI e separada do Antigravity IDE. Instale-a pelo script oficial no PowerShell atual.
+    try {
+        Invoke-RestMethod -Uri "https://antigravity.google/cli/install.ps1" -ErrorAction Stop | Invoke-Expression
+    } catch {
+        Say "Falha ao baixar ou executar o instalador oficial da Antigravity CLI: $_" "Red"
+    }
     Refresh-Path
-    $env:Path = "$env:Path;$env:LOCALAPPDATA\Antigravity;$env:LOCALAPPDATA\agy\bin"
+    $agyBin = Join-Path $env:LOCALAPPDATA "agy\bin"
+    if (Test-Path $agyBin) { $env:Path = "$env:Path;$agyBin" }
     if (Has "agy") {
         Say "Agora faca o login com a conta Google (abre o navegador). Ao terminar, saia com Ctrl+C." "Yellow"
         agy

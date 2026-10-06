@@ -197,11 +197,17 @@ claude
 
 Siga o login que aparece na tela (conta Claude). Depois feche com **Ctrl+C** duas vezes.
 
-**Antigravity (Gemini)**, opcional: instale o app Antigravity, abra e faça login com a sua conta Google. Ele traz o comando `agy`. Confira (reabra o Prompt antes):
+**Antigravity CLI (Gemini)**, opcional: a CLI é separada do aplicativo Antigravity IDE. No Prompt de Comando, instale a CLI com o comando oficial abaixo. Depois, feche e abra o Prompt e confira:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://antigravity.google/cli/install.ps1 | iex"
+```
 
 ```bash
 agy --version
 ```
+
+Na primeira execução de `agy`, faça login com sua conta Google. O aplicativo Antigravity IDE pode ser instalado separadamente pela [página oficial](https://www.antigravity.google/download).
 
 Se algum `npm install -g` der erro de permissão (`EPERM` ou `EACCES`), abra o Prompt **como administrador** (tecla Windows, digite **cmd**, clique com o botão direito em Prompt de Comando, **Executar como administrador**) e repita o comando.
 
