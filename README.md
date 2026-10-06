@@ -40,6 +40,8 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 ### Novo design
 
+![Tela do app com uma pergunta respondida pelo conselho](docs/screenshot.png)
+
 A interface foi redesenhada com o tema de uma sessão de conselho:
 
 - Barra lateral azul-marinho, com um logo de cinco assentos em semicírculo.
