@@ -73,67 +73,6 @@ function Seat({ color, icon, name, sub, selected, dimmed, crown, style, onClick,
   );
 }
 
-function ModelPicker({ provider, providers, value, onChange }) {
-  const { t } = useLang();
-  const [query, setQuery] = useState('');
-  const models = providers.find((p) => p.id === provider)?.models || [];
-  const filtered = models.filter((m) => m.toLowerCase().includes(query.toLowerCase()));
-  return (
-    <div className="model-picker">
-      <input
-        className="drawer-input"
-        placeholder={models.length ? t('searchModel') : t('typeModel')}
-        value={models.length ? query : value}
-        onChange={(e) => (models.length ? setQuery(e.target.value) : onChange(e.target.value))}
-      />
-      {models.length > 0 && (
-        <div className="model-chips">
-          {filtered.map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={`model-chip ${m === value ? 'active' : ''}`}
-              onClick={() => onChange(m)}
-            >
-              {m}
-            </button>
-          ))}
-          {filtered.length === 0 && <span className="drawer-muted">{t('noModelMatch')}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProviderTiles({ providers, value, onChange }) {
-  const { t } = useLang();
-  if (!providers.length) {
-    return <p className="drawer-muted">{t('loadingProviders')}</p>;
-  }
-  const current = providers.find((p) => p.id === value);
-  return (
-    <>
-    <div className="provider-tiles">
-      {providers.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          className={`provider-tile ${value === p.id ? 'active' : ''}`}
-          disabled={!p.installed}
-          onClick={() => onChange(p)}
-        >
-          <span className="provider-name">{p.label}</span>
-          <span className="provider-meta">
-            {!p.installed ? t('notInstalled') : p.needs_login ? t('needsLogin') : t('modelsCount', p.models.length)}
-          </span>
-        </button>
-      ))}
-    </div>
-    {current?.needs_login && <p className="drawer-hint">{t('geminiLoginHint')}</p>}
-    </>
-  );
-}
-
 function SeatSkills({ seat, installed, onChange, onOpenLibrary }) {
   const { t, lang } = useLang();
   const [adding, setAdding] = useState(false);
@@ -143,7 +82,6 @@ function SeatSkills({ seat, installed, onChange, onOpenLibrary }) {
 
   return (
     <section>
-      <h4>{t('skills')}</h4>
       {attached.length === 0 && <p className="drawer-hint">{t('noSeatSkills')}</p>}
       <div className="seat-skill-list">
         {attached.map((id) => (
@@ -201,6 +139,113 @@ function SeatSkills({ seat, installed, onChange, onOpenLibrary }) {
         </div>
       )}
     </section>
+  );
+}
+
+function ProviderList({ providers, value, onChange }) {
+  const { t } = useLang();
+  if (!providers.length) return <p className="drawer-hint">{t('loadingProviders')}</p>;
+  return (
+    <div className="provider-list" role="radiogroup" aria-label={t('provider')}>
+      {providers.map((p) => {
+        const state = !p.installed ? 'off' : p.needs_login ? 'warn' : 'ready';
+        return (
+          <button
+            key={p.id}
+            type="button"
+            role="radio"
+            aria-checked={value === p.id}
+            className={`provider-row ${value === p.id ? 'active' : ''} state-${state}`}
+            disabled={!p.installed}
+            onClick={() => onChange(p)}
+          >
+            <span className="provider-dot" aria-hidden="true" />
+            <span className="provider-row-name">{p.label}</span>
+            <span className="provider-row-meta">
+              {state === 'off' ? t('notInstalled') : state === 'warn' ? t('needsLogin') : t('modelsCount', p.models.length)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ModelList({ provider, providers, value, onChange }) {
+  const { t } = useLang();
+  const [query, setQuery] = useState('');
+  const models = providers.find((p) => p.id === provider)?.models || [];
+  if (!models.length) {
+    return (
+      <input
+        className="drawer-input mono"
+        placeholder={t('typeModel')}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+  const filtered = models.filter((m) => m.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <div className="model-list">
+      {models.length > 6 && (
+        <input
+          className="drawer-input model-search"
+          placeholder={t('searchModel')}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      )}
+      <div className="model-options" role="radiogroup" aria-label={t('model')}>
+        {filtered.map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={m === value}
+            className={`model-option ${m === value ? 'active' : ''}`}
+            onClick={() => onChange(m)}
+          >
+            <span className="radio-mark" aria-hidden="true" />
+            <span className="mono">{m}</span>
+          </button>
+        ))}
+        {filtered.length === 0 && <p className="drawer-hint">{t('noModelMatch')}</p>}
+      </div>
+    </div>
+  );
+}
+
+function RoleList({ value, onChange }) {
+  const { t } = useLang();
+  return (
+    <div className="role-list" role="radiogroup" aria-label={t('roleHeading')}>
+      {ROLE_IDS.map((r) => {
+        const active = value === r;
+        return (
+          <button
+            key={r}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            className={`role-row ${active ? 'active' : ''}`}
+            style={{ '--seat': ROLE_META[r].color }}
+            onClick={() => onChange(r)}
+          >
+            <span className="role-row-icon"><RoleIcon role={r} size={18} /></span>
+            <span className="role-row-text">
+              <span className="role-row-name">{t(`role_${r}`)}</span>
+              <span className="role-row-desc">{active ? t(`roleDesc_${r}`) : t(`roleShort_${r}`)}</span>
+              {active && (
+                <span className="role-row-traits">
+                  {t(`roleTraits_${r}`).map((x) => <span key={x}>{x}</span>)}
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -329,6 +374,11 @@ export default function CouncilRoom({ onClose }) {
   const [saved, setSaved] = useState(null);
   const [providers, setProviders] = useState([]);
   const [selected, setSelected] = useState('chair');
+  const [drawerTab, setDrawerTab] = useState('model');
+  // The chair has no role tab
+  useEffect(() => {
+    if (selected === 'chair' && drawerTab === 'role') setDrawerTab('model');
+  }, [selected, drawerTab]);
   const [status, setStatus] = useState('');
   const [installedSkills, setInstalledSkills] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -671,108 +721,107 @@ export default function CouncilRoom({ onClose }) {
 
         {seat && (
           <aside className="seat-drawer" aria-label={t('seatDetails')}>
-            {selected === 'chair' ? (
-              <>
-                <div className="drawer-title" style={{ '--seat': CHAIR_COLOR }}>
-                  <span className="drawer-orb"><RoleIcon role="chair" /></span>
-                  <div>
-                    <h3>{t('chairman')}</h3>
-                    <p>{t('chairmanDesc')}</p>
-                  </div>
-                </div>
-                <ul className="role-traits">
-                  {t('chairmanTraits').map((x) => <li key={x}>{x}</li>)}
-                </ul>
-              </>
-            ) : (
-              <>
-                <div className="drawer-title" style={{ '--seat': ROLE_META[seat.role]?.color }}>
-                  <span className="drawer-orb"><RoleIcon role={seat.role} /></span>
-                  <div>
-                    <h3>{t(`role_${seat.role}`)}</h3>
-                    <p>{t(`roleDesc_${seat.role}`)}</p>
-                  </div>
-                </div>
-                <label className="toggle">
+            {/* identity: who sits here, at a glance */}
+            <header
+              className="seat-id"
+              style={{ '--seat': selected === 'chair' ? CHAIR_COLOR : ROLE_META[seat.role]?.color }}
+            >
+              <span className="drawer-orb">
+                <RoleIcon role={selected === 'chair' ? 'chair' : seat.role} />
+              </span>
+              <div className="seat-id-text">
+                <span className="seat-id-kicker">
+                  {selected === 'chair' ? t('chairman') : t(`role_${seat.role}`)}
+                </span>
+                <input
+                  className="seat-id-name"
+                  value={seat.name}
+                  aria-label={t('seatName')}
+                  onChange={(e) => patchSeat({ name: e.target.value })}
+                />
+                <span className="seat-id-runs">
+                  {providerLabel(seat.provider)} <span className="mono">{seat.model || '—'}</span>
+                </span>
+              </div>
+            </header>
+
+            <div className="segmented drawer-tabs" role="tablist">
+              {(selected === 'chair' ? ['model', 'skills'] : ['model', 'role', 'skills']).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={drawerTab === tab}
+                  className={drawerTab === tab ? 'active' : ''}
+                  onClick={() => setDrawerTab(tab)}
+                >
+                  {t(`drawerTab_${tab}`)}
+                  {tab === 'skills' && (seat.skills || []).length > 0 && (
+                    <span className="count">{seat.skills.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="drawer-scroll">
+              {drawerTab === 'model' && (
+                <>
+                  {selected === 'chair' && <p className="drawer-hint">{t('chairmanDesc')}</p>}
+                  <section>
+                    <h4>{t('provider')}</h4>
+                    <ProviderList providers={providers} value={seat.provider} onChange={chooseProvider} />
+                    {providers.find((p) => p.id === seat.provider)?.needs_login && (
+                      <p className="drawer-hint">{t('geminiLoginHint')}</p>
+                    )}
+                  </section>
+                  <section>
+                    <h4>{t('model')}</h4>
+                    <ModelList provider={seat.provider} providers={providers} value={seat.model} onChange={chooseModel} />
+                    <TestButton seat={seat} />
+                  </section>
+                </>
+              )}
+
+              {drawerTab === 'role' && selected !== 'chair' && (
+                <RoleList value={seat.role} onChange={(r) => patchSeat({ role: r })} />
+              )}
+
+              {drawerTab === 'skills' && (
+                <SeatSkills
+                  seat={seat}
+                  installed={installedSkills}
+                  onChange={(skills) => patchSeat({ skills })}
+                  onOpenLibrary={() => setLibraryOpen(true)}
+                />
+              )}
+            </div>
+
+            {selected !== 'chair' && (
+              <footer className="drawer-footer">
+                <label className="switch">
                   <input
                     type="checkbox"
                     checked={seat.enabled}
                     onChange={(e) => patchSeat({ enabled: e.target.checked })}
                   />
-                  <span>{seat.enabled ? t('seatActive') : t('seatInactive')}</span>
+                  <span className="switch-track" aria-hidden="true" />
+                  <span>{seat.enabled ? t('seatActiveShort') : t('seatInactiveShort')}</span>
                 </label>
-              </>
-            )}
-
-            <section>
-              <h4>{t('seatName')}</h4>
-              <input
-                className="drawer-input"
-                value={seat.name}
-                onChange={(e) => patchSeat({ name: e.target.value })}
-              />
-            </section>
-
-            <section>
-              <h4>{t('provider')}</h4>
-              <ProviderTiles providers={providers} value={seat.provider} onChange={chooseProvider} />
-              {providers.length > 0 && !providers.some((p) => p.id === seat.provider) && (
-                <p className="drawer-muted">{providerLabel(seat.provider)}</p>
-              )}
-            </section>
-
-            <section>
-              <h4>
-                {t('model')} <span className="drawer-muted">{seat.model}</span>
-              </h4>
-              <ModelPicker
-                provider={seat.provider}
-                providers={providers}
-                value={seat.model}
-                onChange={chooseModel}
-              />
-              <TestButton seat={seat} />
-            </section>
-
-            <SeatSkills
-              seat={seat}
-              installed={installedSkills}
-              onChange={(skills) => patchSeat({ skills })}
-              onOpenLibrary={() => setLibraryOpen(true)}
-            />
-
-            {selected !== 'chair' && (
-              <>
-                <section>
-                  <h4>{t('roleHeading')}</h4>
-                  <div className="role-grid">
-                    {ROLE_IDS.map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        className={`role-card ${seat.role === r ? 'active' : ''}`}
-                        style={{ '--seat': ROLE_META[r].color }}
-                        onClick={() => patchSeat({ role: r })}
-                      >
-                        <span className="role-card-icon"><RoleIcon role={r} size={18} /></span>
-                        <span className="role-card-name">{t(`role_${r}`)}</span>
-                        <span className="role-card-desc">{t(`roleShort_${r}`)}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <ul className="role-traits">
-                    {t(`roleTraits_${seat.role}`).map((x) => <li key={x}>{x}</li>)}
-                  </ul>
-                </section>
-                <div className="drawer-footer">
-                  <button type="button" className="drawer-btn" onClick={makeChair}>
-                    {t('makeChair')}
-                  </button>
-                  <button type="button" className="drawer-btn drawer-danger" onClick={removeSeat}>
-                    {t('removeSeat')}
+                <div className="drawer-footer-actions">
+                  <button type="button" className="text-btn-dark" onClick={makeChair}>{t('makeChair')}</button>
+                  <button
+                    type="button"
+                    className="text-btn-dark danger icon-only"
+                    onClick={removeSeat}
+                    title={t('removeSeat')}
+                    aria-label={t('removeSeat')}
+                  >
+                    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                      <path d="M3 4h10M6.5 4V2.75h3V4M4.5 4l.6 9.25h5.8L11.5 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
-              </>
+              </footer>
             )}
           </aside>
         )}

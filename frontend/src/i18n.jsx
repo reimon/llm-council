@@ -66,6 +66,11 @@ const STRINGS = {
     testOk: (s) => `Respondeu em ${s}s`,
     testFail: 'Não respondeu. Confira o login desse app.',
     roleHeading: 'Papel no conselho',
+    drawerTab_model: 'Modelo',
+    drawerTab_role: 'Papel',
+    drawerTab_skills: 'Skills',
+    seatActiveShort: 'Participa',
+    seatInactiveShort: 'Fora desta sessão',
 
     myCouncils: 'Meus conselhos',
     autoConfigure: 'Configurar automaticamente',
@@ -273,6 +278,11 @@ const STRINGS = {
     testOk: (s) => `Answered in ${s}s`,
     testFail: 'No answer. Check that app’s login.',
     roleHeading: 'Role on the council',
+    drawerTab_model: 'Model',
+    drawerTab_role: 'Role',
+    drawerTab_skills: 'Skills',
+    seatActiveShort: 'Takes part',
+    seatInactiveShort: 'Sitting out',
 
     myCouncils: 'My councils',
     autoConfigure: 'Set up automatically',
