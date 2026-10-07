@@ -841,3 +841,76 @@ button, textarea { font: inherit; color: inherit; }
   background: rgba(0,0,0,0.3); font-family: var(--mono); font-size: 11.5px; color: #ffcdc9; white-space: pre-wrap;
 }
 @media (max-width: 760px) { .auto-report { margin: 10px 16px 0; } }
+
+/* ---------- Council chamber motion ----------
+   One orchestrated "convening" on open: the table lights up, beams draw out to each seat in turn,
+   each councillor arrives as its beam reaches it, the chair last. After that, only meaningful
+   ambient motion: energy pulses run to the seats that are taking part, and the table breathes. */
+.chamber { --step: 90ms; --beam-start: 320ms; }
+
+.chamber .table-ring {
+  animation: table-ignite 700ms cubic-bezier(.2,.8,.2,1) both, table-breathe 7s ease-in-out 1.2s infinite;
+}
+@keyframes table-ignite {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.82); box-shadow: 0 0 0 rgba(110,130,255,0); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes table-breathe {
+  0%, 100% { box-shadow: 0 0 60px rgba(110,130,255,0.22), inset 0 0 40px rgba(110,130,255,0.16); }
+  50%      { box-shadow: 0 0 90px rgba(110,130,255,0.38), inset 0 0 56px rgba(110,130,255,0.26); }
+}
+.chamber .table-ring ol { animation: fade-in 500ms ease 900ms both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.chamber .beam {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: beam-draw 520ms cubic-bezier(.4,0,.2,1) both;
+  animation-delay: calc(var(--beam-start) + var(--i) * var(--step));
+}
+@keyframes beam-draw { to { stroke-dashoffset: 0; } }
+
+.chamber .beam-pulse {
+  stroke-dasharray: 0.07 0.93;
+  stroke-linecap: round;
+  stroke-opacity: 0;
+  animation: beam-pulse 3.6s linear infinite;
+  animation-delay: calc(1.6s + var(--i) * 470ms);
+}
+@keyframes beam-pulse {
+  0%   { stroke-dashoffset: 0.07; stroke-opacity: 0; }
+  8%   { stroke-opacity: .95; }
+  70%  { stroke-opacity: .95; }
+  85%, 100% { stroke-dashoffset: -0.93; stroke-opacity: 0; }
+}
+
+/* a seat arrives when its beam reaches it */
+.chamber .seat {
+  animation: seat-arrive 560ms cubic-bezier(.2,1.25,.4,1) both;
+  animation-delay: calc(var(--beam-start) + 380ms + var(--i) * var(--step));
+}
+@keyframes seat-arrive {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.55); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.chamber .seat-dimmed { animation-name: seat-arrive-dim; }
+@keyframes seat-arrive-dim {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.55); }
+  to   { opacity: .4; transform: translate(-50%, -50%) scale(1); }
+}
+.chamber .seat-chair .seat-orb { animation: crown-flare 1.4s ease-out both; animation-delay: calc(var(--beam-start) + 700ms + var(--i) * var(--step)); }
+@keyframes crown-flare {
+  0%   { box-shadow: 0 0 0 rgba(225,183,90,0); }
+  40%  { box-shadow: 0 0 46px rgba(225,183,90,.95), inset 0 0 18px rgba(225,183,90,.6); }
+  100% { box-shadow: 0 0 18px color-mix(in srgb, var(--seat) 55%, transparent), inset 0 0 12px color-mix(in srgb, var(--seat) 40%, transparent); }
+}
+
+/* answers to the person's actions */
+.seat:hover .seat-orb { transform: translateY(-3px) scale(1.06); }
+.seat-selected .seat-orb { position: relative; }
+.seat-selected .seat-orb::after {
+  content: ""; position: absolute; inset: -9px; border-radius: 50%;
+  border: 1.5px dashed var(--seat); opacity: .8;
+  animation: orbit 9s linear infinite;
+}
+@keyframes orbit { to { transform: rotate(360deg); } }

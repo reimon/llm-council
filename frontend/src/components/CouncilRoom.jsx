@@ -592,10 +592,11 @@ export default function CouncilRoom({ onClose }) {
       )}
 
       <div className="room-body">
-        <div className="chamber" role="group" aria-label={t('chamberTitle')}>
+        {/* keyed by council so the "convening" entrance replays when switching councils */}
+        <div key={council.id} className="chamber" role="group" aria-label={t('chamberTitle')}>
           <svg className="chamber-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {[
-              { key: 'chair', x: 50, y: 12, color: CHAIR_COLOR, opacity: 0.55 },
+              { key: 'chair', x: 50, y: 12, color: CHAIR_COLOR, opacity: 0.55, order: members.length, active: true },
               ...members.map((m, i) => {
                 const pos = seatPosition(i, members.length + 1);
                 return {
@@ -604,18 +605,21 @@ export default function CouncilRoom({ onClose }) {
                   y: parseFloat(pos.top),
                   color: ROLE_META[m.role]?.color,
                   opacity: m.enabled ? 0.4 : 0.1,
+                  order: i,
+                  active: m.enabled,
                 };
               }),
             ].map((l) => {
               const [x1, y1, x2, y2] = tableToSeat(l.x, l.y);
+              // pathLength=1 lets CSS draw/animate the beam in fractions of its length
+              const common = { x1, y1, x2, y2, stroke: l.color, pathLength: 1 };
               return (
-                <line
-                  key={l.key}
-                  x1={x1} y1={y1} x2={x2} y2={y2}
-                  stroke={l.color}
-                  strokeOpacity={l.opacity}
-                  strokeWidth="0.25"
-                />
+                <g key={l.key} style={{ '--i': l.order }}>
+                  {/* the beam draws itself from the table to the seat on entrance */}
+                  <line {...common} className="beam" strokeOpacity={l.opacity} strokeWidth="0.25" />
+                  {/* a pulse of energy travels to every seat that is taking part */}
+                  {l.active && <line {...common} className="beam-pulse" strokeWidth="0.55" />}
+                </g>
               );
             })}
           </svg>
@@ -634,7 +638,7 @@ export default function CouncilRoom({ onClose }) {
             label={t('chairmanSeat', council.chairman.name)}
             selected={selected === 'chair'}
             skills={skillBadges(council.chairman.skills)}
-            style={{ left: '50%', top: '12%' }}
+            style={{ left: '50%', top: '12%', '--i': members.length }}
             onClick={() => setSelected('chair')}
           />
 
@@ -649,7 +653,7 @@ export default function CouncilRoom({ onClose }) {
               selected={selected === m.id}
               dimmed={!m.enabled}
               skills={skillBadges(m.skills)}
-              style={seatPosition(i, members.length + 1)}
+              style={{ ...seatPosition(i, members.length + 1), '--i': i }}
               onClick={() => setSelected(m.id)}
             />
           ))}
@@ -660,7 +664,7 @@ export default function CouncilRoom({ onClose }) {
             icon={<span className="plus">+</span>}
             name={t('addSeat')}
             label={t('addSeat')}
-            style={seatPosition(members.length, members.length + 1)}
+            style={{ ...seatPosition(members.length, members.length + 1), '--i': members.length + 1 }}
             onClick={addSeat}
           />
         </div>
