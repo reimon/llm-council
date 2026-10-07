@@ -397,6 +397,45 @@ Para ajustar à mão:
 
 ### Se algo não funcionar
 
+**Diagnóstico rápido.** Se a configuração automática não encontrar ou não testar os programas, rode estes comandos num terminal **novo** e compare com a tabela abaixo.
+
+Windows (Prompt de Comando):
+
+```bash
+where claude
+```
+
+```bash
+where agy
+```
+
+```bash
+claude --version
+```
+
+```bash
+agy --version
+```
+
+macOS / Linux: use `which` no lugar de `where`.
+
+Depois, dentro da pasta `llm-council`, confira a versão do projeto e rode o diagnóstico completo, que mostra onde cada programa foi encontrado e o motivo de cada falha:
+
+```bash
+git log --oneline -1
+```
+
+```bash
+uv run python -m backend.autoconfig
+```
+
+Como ler o resultado:
+- **`where`/`which` não encontra o programa:** ele não está instalado como comando de terminal (o app de desktop não serve). Instale pela tabela de [Programas de IA](#programas-de-ia).
+- **`where` encontra, mas o relatório diz "não instalado":** o app foi iniciado antes da instalação. Pare com Ctrl+C e inicie de novo num terminal novo.
+- **Encontrado, mas o teste falha (✗):** leia o motivo mostrado. Normalmente é falta de login: rode o programa uma vez (`claude`, `agy`, `codex login`) e entre com a sua conta.
+- **`git log` mostra uma versão antiga:** rode `git pull` e reinicie o app.
+
+
 | Sintoma | O que fazer |
 |---|---|
 | Programa aparece como "Não instalado" | Confira num terminal **novo** se ele responde (ex.: `codex --version`). Se não responder, instale e faça login. Se responder, pare o app (Ctrl+C) e inicie de novo nesse terminal novo. |
