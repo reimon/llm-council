@@ -216,25 +216,35 @@ function ModelList({ provider, providers, value, onChange }) {
   );
 }
 
-function RoleList({ value, onChange }) {
+function RoleList({ value, onChange, takenBy = {} }) {
   const { t } = useLang();
   return (
     <div className="role-list" role="radiogroup" aria-label={t('roleHeading')}>
       {ROLE_IDS.map((r) => {
         const active = value === r;
+        const others = takenBy[r] || [];
         return (
           <button
             key={r}
             type="button"
             role="radio"
             aria-checked={active}
-            className={`role-row ${active ? 'active' : ''}`}
+            className={`role-row ${active ? 'active' : ''} ${!active && others.length ? 'taken' : ''}`}
             style={{ '--seat': ROLE_META[r].color }}
             onClick={() => onChange(r)}
           >
             <span className="role-row-icon"><RoleIcon role={r} size={18} /></span>
             <span className="role-row-text">
-              <span className="role-row-name">{t(`role_${r}`)}</span>
+              <span className="role-row-head">
+                <span className="role-row-name">{t(`role_${r}`)}</span>
+                {others.length > 0 ? (
+                  <span className="role-taken" title={others.join(', ')}>
+                    {t('roleTakenBy', others[0], others.length - 1)}
+                  </span>
+                ) : (
+                  !active && <span className="role-free">{t('roleFree')}</span>
+                )}
+              </span>
               <span className="role-row-desc">{active ? t(`roleDesc_${r}`) : t(`roleShort_${r}`)}</span>
               {active && (
                 <span className="role-row-traits">
@@ -783,7 +793,15 @@ export default function CouncilRoom({ onClose }) {
               )}
 
               {drawerTab === 'role' && selected !== 'chair' && (
-                <RoleList value={seat.role} onChange={(r) => patchSeat({ role: r })} />
+                <RoleList
+                  value={seat.role}
+                  onChange={(r) => patchSeat({ role: r })}
+                  takenBy={members.reduce((acc, m) => {
+                    // other active seats only: a seat sitting out does not occupy its role
+                    if (m.id !== selected && m.enabled) (acc[m.role] = acc[m.role] || []).push(m.name);
+                    return acc;
+                  }, {})}
+                />
               )}
 
               {drawerTab === 'skills' && (
