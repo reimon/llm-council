@@ -110,7 +110,8 @@ def _antigravity_models() -> List[str]:
         if len(fields) < 2:
             continue
         slug = fields[0]
-        if slug[0].islower() and "-" in slug and all(c.islower() or c.isdigit() or c == "-" for c in slug):
+        # Slugs look like "gemini-3.8-flash-high": lowercase, digits, hyphens and dots
+        if slug[0].islower() and "-" in slug and all(c.islower() or c.isdigit() or c in "-." for c in slug):
             models.append(slug)
     if models:
         _models_errors.pop("antigravity", None)

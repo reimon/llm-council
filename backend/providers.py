@@ -102,9 +102,12 @@ async def _run_cli(
         except asyncio.TimeoutError:
             proc.kill()
             raise RuntimeError(f"timed out after {timeout}s")
-        if proc.returncode != 0:
-            raise RuntimeError(err.decode(errors="ignore")[-500:] or f"exit code {proc.returncode}")
         raw = out.decode(errors="ignore").strip()
+        if proc.returncode != 0:
+            # JSON-mode CLIs report the real reason (e.g. an expired login) on stdout
+            if parse and raw:
+                parse(raw)  # raises with the CLI's own error message
+            raise RuntimeError(err.decode(errors="ignore")[-500:] or raw[-500:] or f"exit code {proc.returncode}")
         parsed = parse(raw) if (parse and raw) else {"content": raw}
         if not parsed.get("content"):
             # An empty answer is a failure (e.g. a denied tool), not a blank response
