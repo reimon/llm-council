@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 
 export default function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }) {
   const { t } = useLang();

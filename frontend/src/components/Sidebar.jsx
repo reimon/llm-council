@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 import './Sidebar.css';
 
 function TrashIcon() {

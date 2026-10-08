@@ -9,6 +9,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
+from .jsonfile import write_json
 from .platform_utils import resolve_bin, find_bin
 from .config import DATA_DIR, COUNCIL_MODELS, CHAIRMAN_MODEL, LLM_PROVIDER
 
@@ -196,9 +197,7 @@ def _read_store() -> Dict[str, Any]:
 
 
 def _write_store(store: Dict[str, Any]):
-    os.makedirs(os.path.dirname(COUNCILS_PATH), exist_ok=True)
-    with open(COUNCILS_PATH, "w", encoding="utf-8") as f:
-        json.dump(store, f, indent=2, ensure_ascii=False)
+    write_json(COUNCILS_PATH, store, ensure_ascii=False)
 
 
 def list_councils() -> Dict[str, Any]:

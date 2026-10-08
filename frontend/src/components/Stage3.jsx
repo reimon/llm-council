@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 import './Stage3.css';
 
 export default function Stage3({ finalResponse }) {

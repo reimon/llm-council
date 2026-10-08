@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { LangContext } from './useLang';
 
 const STRINGS = {
   pt: {
@@ -436,7 +437,6 @@ const PLACEHOLDER_TITLES = new Set(['Nova conversa', 'New Conversation']);
 // Name the backend gives the first council; shown in the current language until renamed
 const DEFAULT_COUNCIL_NAMES = new Set(['Conselho principal', 'Main council']);
 
-const LangContext = createContext(null);
 
 function initialLang() {
   try {
@@ -470,5 +470,3 @@ export function LangProvider({ children }) {
 
   return <LangContext.Provider value={{ lang, t, title, councilLabel, toggle }}>{children}</LangContext.Provider>;
 }
-
-export const useLang = () => useContext(LangContext);

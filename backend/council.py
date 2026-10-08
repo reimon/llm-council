@@ -1,7 +1,9 @@
 """3-stage LLM Council orchestration."""
 
 import asyncio
-from typing import List, Dict, Any, Tuple
+import re
+from collections import defaultdict
+from typing import List, Dict, Any, Optional, Tuple
 from .config import LLM_PROVIDER, TITLE_MODEL
 from .council_config import active_members, load_council, role_prompt
 from .providers import query_member
@@ -9,6 +11,54 @@ from .skills import skills_prompt
 
 
 import time
+
+# Earlier exchanges sent along with a follow-up question
+HISTORY_TURNS = 3
+HISTORY_CHARS_PER_ANSWER = 3000
+
+LABEL_PATTERN = re.compile(r'Response ([A-Z]+)\b')
+
+
+def response_label(index: int) -> str:
+    """Anonymous label for the index-th Stage 1 answer: Response A ... Z, AA, AB, ..."""
+    letters = ""
+    index += 1
+    while index:
+        index, rem = divmod(index - 1, 26)
+        letters = chr(65 + rem) + letters
+    return f"Response {letters}"
+
+
+def format_history(messages: List[Dict[str, Any]]) -> str:
+    """The last few question / final-answer pairs of a conversation, as prompt text."""
+    pairs = []
+    pending_question = None
+    for msg in messages:
+        if msg.get("role") == "user":
+            pending_question = msg.get("content", "")
+        elif msg.get("role") == "assistant" and pending_question is not None:
+            answer = ((msg.get("stage3") or {}).get("response") or "").strip()
+            if answer and not answer.startswith("Error:"):
+                if len(answer) > HISTORY_CHARS_PER_ANSWER:
+                    answer = answer[:HISTORY_CHARS_PER_ANSWER] + " […]"
+                pairs.append((pending_question, answer))
+            pending_question = None
+    return "\n\n".join(
+        f"User: {q}\nCouncil's final answer: {a}" for q, a in pairs[-HISTORY_TURNS:]
+    )
+
+
+def with_history(query: str, history: str) -> str:
+    """Prefix a follow-up question with the earlier conversation so every stage has context."""
+    if not history:
+        return query
+    return (
+        "Earlier in this conversation (for context only):\n\n"
+        f"{history}\n\n"
+        "---\n\n"
+        f"Current question (answer this one): {query}"
+    )
+
 
 async def query_members_parallel(
     members: List[Dict[str, Any]],
@@ -114,11 +164,11 @@ async def stage2_collect_rankings(
         Tuple of (rankings list, label_to_model mapping)
     """
     # Create anonymized labels for responses (Response A, Response B, etc.)
-    labels = [chr(65 + i) for i in range(len(stage1_results))]  # A, B, C, ...
+    labels = [response_label(i) for i in range(len(stage1_results))]  # Response A, B, C, ...
 
     # Create mapping from label to model name
     label_to_model = {
-        f"Response {label}": result['model']
+        label: result['model']
         for label, result in zip(labels, stage1_results)
     }
     if on_event:
@@ -127,7 +177,7 @@ async def stage2_collect_rankings(
 
     # Build the ranking prompt
     responses_text = "\n\n".join([
-        f"Response {label}:\n{result['response']}"
+        f"{label}:\n{result['response']}"
         for label, result in zip(labels, stage1_results)
     ])
 
@@ -294,28 +344,26 @@ def parse_ranking_from_text(ranking_text: str) -> List[str]:
     Returns:
         List of response labels in ranked order
     """
-    import re
-
     # Look for "FINAL RANKING:" section
     if "FINAL RANKING:" in ranking_text:
-        # Extract everything after "FINAL RANKING:"
-        parts = ranking_text.split("FINAL RANKING:")
-        if len(parts) >= 2:
-            ranking_section = parts[1]
-            # Try to extract numbered list format (e.g., "1. Response A")
-            # This pattern looks for: number, period, optional space, "Response X"
-            numbered_matches = re.findall(r'\d+\.\s*Response [A-Z]', ranking_section)
-            if numbered_matches:
-                # Extract just the "Response X" part
-                return [re.search(r'Response [A-Z]', m).group() for m in numbered_matches]
+        # Everything after the last "FINAL RANKING:" (the evaluation may quote the header)
+        ranking_section = ranking_text.rsplit("FINAL RANKING:", 1)[1]
+        # Try to extract numbered list format (e.g., "1. Response A")
+        numbered = re.findall(r'\d+\.\s*\**\s*Response ([A-Z]+)\b', ranking_section)
+        if numbered:
+            return _dedupe(f"Response {x}" for x in numbered)
 
-            # Fallback: Extract all "Response X" patterns in order
-            matches = re.findall(r'Response [A-Z]', ranking_section)
-            return matches
+        # Fallback: Extract all "Response X" patterns in order
+        return _dedupe(f"Response {x}" for x in LABEL_PATTERN.findall(ranking_section))
 
     # Fallback: try to find any "Response X" patterns in order
-    matches = re.findall(r'Response [A-Z]', ranking_text)
-    return matches
+    return _dedupe(f"Response {x}" for x in LABEL_PATTERN.findall(ranking_text))
+
+
+def _dedupe(labels) -> List[str]:
+    """Keep each label's first position (a label repeated later is not a second vote)."""
+    seen = set()
+    return [x for x in labels if not (x in seen or seen.add(x))]
 
 
 def calculate_aggregate_rankings(
@@ -332,8 +380,6 @@ def calculate_aggregate_rankings(
     Returns:
         List of dicts with model name and average rank, sorted best to worst
     """
-    from collections import defaultdict
-
     # Track positions for each model
     model_positions = defaultdict(list)
 
@@ -402,45 +448,3 @@ Title:"""
         title = title[:47] + "..."
 
     return title
-
-
-async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
-    """
-    Run the complete 3-stage council process.
-
-    Args:
-        user_query: The user's question
-
-    Returns:
-        Tuple of (stage1_results, stage2_results, stage3_result, metadata)
-    """
-    # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query)
-
-    # If no models responded successfully, return error
-    if not stage1_results:
-        return [], [], {
-            "model": "error",
-            "response": "All models failed to respond. Please try again."
-        }, {}
-
-    # Stage 2: Collect rankings
-    stage2_results, label_to_model = await stage2_collect_rankings(user_query, stage1_results)
-
-    # Calculate aggregate rankings
-    aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
-
-    # Stage 3: Synthesize final answer
-    stage3_result = await stage3_synthesize_final(
-        user_query,
-        stage1_results,
-        stage2_results
-    )
-
-    # Prepare metadata
-    metadata = {
-        "label_to_model": label_to_model,
-        "aggregate_rankings": aggregate_rankings
-    }
-
-    return stage1_results, stage2_results, stage3_result, metadata

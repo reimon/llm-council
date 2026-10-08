@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 
 function attachmentLabel(a) {
   if (a.kind === 'link') return a.url.replace(/^https?:\/\//, '');

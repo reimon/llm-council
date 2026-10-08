@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import { useLang } from '../i18n';
-import SkillLibrary, { skillName } from './SkillLibrary';
+import { useLang } from '../useLang';
+import SkillLibrary from './SkillLibrary';
+import { skillName } from './skillName';
+import { ROLE_META } from './roles';
 
-export const ROLE_META = {
-  generalist: { color: '#8e9bf0' },
-  contrarian: { color: '#ef6461' },
-  first_principles: { color: '#4aa3ff' },
-  expansionist: { color: '#3fcf8e' },
-  outsider: { color: '#f39a3d' },
-  executor: { color: '#2fc4b2' },
-};
 const CHAIR_COLOR = '#e1b75a';
 const ROLE_IDS = Object.keys(ROLE_META);
 
@@ -262,7 +256,6 @@ function RoleList({ value, onChange, takenBy = {} }) {
 function TestButton({ seat }) {
   const { t } = useLang();
   const [state, setState] = useState(null);
-  useEffect(() => setState(null), [seat.provider, seat.model]);
   const run = async () => {
     setState({ running: true });
     try {
@@ -423,7 +416,7 @@ export default function CouncilRoom({ onClose }) {
   }, []);
 
   const dirty = council && JSON.stringify(council) !== saved;
-  const members = council?.members || [];
+  const members = useMemo(() => council?.members || [], [council]);
   const seat = selected === 'chair' ? council?.chairman : members.find((m) => m.id === selected);
 
   const patchSeat = (patch) => {
@@ -787,7 +780,7 @@ export default function CouncilRoom({ onClose }) {
                   <section>
                     <h4>{t('model')}</h4>
                     <ModelList provider={seat.provider} providers={providers} value={seat.model} onChange={chooseModel} />
-                    <TestButton seat={seat} />
+                    <TestButton key={`${seat.provider}:${seat.model}`} seat={seat} />
                   </section>
                 </>
               )}

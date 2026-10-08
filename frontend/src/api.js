@@ -4,12 +4,22 @@
 
 const API_BASE = 'http://127.0.0.1:8001';
 
+/**
+ * fetch() that marks writes with the header the backend requires. A custom header
+ * forces a CORS preflight, so other sites open in the browser cannot call the API.
+ */
+function request(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method === 'GET') return fetch(url, options);
+  return fetch(url, { ...options, headers: { ...options.headers, 'X-LLM-Council': '1' } });
+}
+
 export const api = {
   /**
    * List all conversations.
    */
   async listConversations() {
-    const response = await fetch(`${API_BASE}/api/conversations`);
+    const response = await request(`${API_BASE}/api/conversations`);
     if (!response.ok) {
       throw new Error('Failed to list conversations');
     }
@@ -20,7 +30,7 @@ export const api = {
    * Create a new conversation.
    */
   async createConversation(projectId = null) {
-    const response = await fetch(`${API_BASE}/api/conversations`, {
+    const response = await request(`${API_BASE}/api/conversations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -37,7 +47,7 @@ export const api = {
    * Get a specific conversation.
    */
   async getConversation(conversationId) {
-    const response = await fetch(
+    const response = await request(
       `${API_BASE}/api/conversations/${conversationId}`
     );
     if (!response.ok) {
@@ -50,7 +60,7 @@ export const api = {
    * List all projects.
    */
   async listProjects() {
-    const response = await fetch(`${API_BASE}/api/projects`);
+    const response = await request(`${API_BASE}/api/projects`);
     if (!response.ok) {
       throw new Error('Failed to list projects');
     }
@@ -61,7 +71,7 @@ export const api = {
    * Create a project from a local folder path.
    */
   async createProject(name, path) {
-    const response = await fetch(`${API_BASE}/api/projects`, {
+    const response = await request(`${API_BASE}/api/projects`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, path }),
@@ -77,7 +87,7 @@ export const api = {
    * Delete a project and its conversations.
    */
   async deleteProject(projectId) {
-    const response = await fetch(`${API_BASE}/api/projects/${projectId}`, {
+    const response = await request(`${API_BASE}/api/projects/${projectId}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -90,7 +100,7 @@ export const api = {
    * Open the native folder picker (macOS). Resolves to a path or null.
    */
   async pickFolder() {
-    const response = await fetch(`${API_BASE}/api/pick-folder`, { method: 'POST' });
+    const response = await request(`${API_BASE}/api/pick-folder`, { method: 'POST' });
     if (!response.ok) return null;
     return (await response.json()).path;
   },
@@ -99,7 +109,7 @@ export const api = {
    * Upload an image or video. Resolves to the stored attachment.
    */
   async uploadFile(file) {
-    const response = await fetch(
+    const response = await request(
       `${API_BASE}/api/uploads?name=${encodeURIComponent(file.name)}`,
       { method: 'POST', body: file }
     );
@@ -119,13 +129,13 @@ export const api = {
 
   async getCouncil(id = null) {
     const query = id ? `?id=${encodeURIComponent(id)}` : '';
-    const response = await fetch(`${API_BASE}/api/council${query}`);
+    const response = await request(`${API_BASE}/api/council${query}`);
     if (!response.ok) throw new Error('Failed to load council');
     return response.json();
   },
 
   async saveCouncil(council) {
-    const response = await fetch(`${API_BASE}/api/council`, {
+    const response = await request(`${API_BASE}/api/council`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(council),
@@ -136,13 +146,13 @@ export const api = {
   },
 
   async listCouncils() {
-    const response = await fetch(`${API_BASE}/api/councils`);
+    const response = await request(`${API_BASE}/api/councils`);
     if (!response.ok) throw new Error('Failed to load councils');
     return response.json();
   },
 
   async createCouncil(name, fromId = null) {
-    const response = await fetch(`${API_BASE}/api/councils`, {
+    const response = await request(`${API_BASE}/api/councils`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, from_id: fromId }),
@@ -153,62 +163,62 @@ export const api = {
   },
 
   async deleteCouncil(id) {
-    const response = await fetch(`${API_BASE}/api/councils/${id}`, { method: 'DELETE' });
+    const response = await request(`${API_BASE}/api/councils/${id}`, { method: 'DELETE' });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Failed to delete council');
     return data;
   },
 
   async setDefaultCouncil(id) {
-    const response = await fetch(`${API_BASE}/api/councils/${id}/default`, { method: 'POST' });
+    const response = await request(`${API_BASE}/api/councils/${id}/default`, { method: 'POST' });
     if (!response.ok) throw new Error('Failed to set default council');
     return response.json();
   },
 
   async getSkillCatalog() {
-    const response = await fetch(`${API_BASE}/api/skills/catalog`);
+    const response = await request(`${API_BASE}/api/skills/catalog`);
     if (!response.ok) throw new Error('Failed to load skills');
     return response.json();
   },
 
   async translateSkills() {
-    const response = await fetch(`${API_BASE}/api/skills/translate`, { method: 'POST' });
+    const response = await request(`${API_BASE}/api/skills/translate`, { method: 'POST' });
     if (!response.ok) return { pending: 0, running: false };
     return response.json();
   },
 
   async getInstalledSkills() {
-    const response = await fetch(`${API_BASE}/api/skills`);
+    const response = await request(`${API_BASE}/api/skills`);
     if (!response.ok) throw new Error('Failed to load skills');
     return response.json();
   },
 
   async installSkill(id) {
-    const response = await fetch(`${API_BASE}/api/skills/${encodeURIComponent(id)}`, { method: 'POST' });
+    const response = await request(`${API_BASE}/api/skills/${encodeURIComponent(id)}`, { method: 'POST' });
     if (!response.ok) throw new Error('Failed to install skill');
     return response.json();
   },
 
   async uninstallSkill(id) {
-    const response = await fetch(`${API_BASE}/api/skills/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const response = await request(`${API_BASE}/api/skills/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Failed to remove skill');
     return response.json();
   },
 
   async getProviders() {
-    const response = await fetch(`${API_BASE}/api/providers`);
+    const response = await request(`${API_BASE}/api/providers`);
     if (!response.ok) throw new Error('Failed to load providers');
     return response.json();
   },
 
   async autoconfigureCouncil() {
-    const response = await fetch(`${API_BASE}/api/council/autoconfigure`, { method: 'POST' });
+    const response = await request(`${API_BASE}/api/council/autoconfigure`, { method: 'POST' });
     if (!response.ok) throw new Error('Failed to configure council');
     return response.json();
   },
 
   async testSeat(seat) {
-    const response = await fetch(`${API_BASE}/api/council/test`, {
+    const response = await request(`${API_BASE}/api/council/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(seat),
@@ -220,32 +230,12 @@ export const api = {
    * Delete a conversation.
    */
   async deleteConversation(conversationId) {
-    const response = await fetch(
+    const response = await request(
       `${API_BASE}/api/conversations/${conversationId}`,
       { method: 'DELETE' }
     );
     if (!response.ok) {
       throw new Error('Failed to delete conversation');
-    }
-    return response.json();
-  },
-
-  /**
-   * Send a message in a conversation.
-   */
-  async sendMessage(conversationId, content) {
-    const response = await fetch(
-      `${API_BASE}/api/conversations/${conversationId}/message`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content }),
-      }
-    );
-    if (!response.ok) {
-      throw new Error('Failed to send message');
     }
     return response.json();
   },
@@ -259,7 +249,7 @@ export const api = {
    * @returns {Promise<void>}
    */
   async sendMessageStream(conversationId, content, attachments, onEvent, signal) {
-    const response = await fetch(
+    const response = await request(
       `${API_BASE}/api/conversations/${conversationId}/message/stream`,
       {
         method: 'POST',
@@ -286,7 +276,7 @@ export const api = {
    * Reconnect to an in-progress or recently completed deliberation stream.
    */
   async reconnectStream(conversationId, onEvent, signal) {
-    const response = await fetch(
+    const response = await request(
       `${API_BASE}/api/conversations/${conversationId}/events`,
       { signal }
     );

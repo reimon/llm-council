@@ -27,6 +27,9 @@ TITLE_MODEL = "google/gemini-2.5-flash"
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "codex")
 CODEX_BIN = os.getenv("CODEX_BIN", "codex")
 
+# These lists only seed the very first council, before data/councils.json exists.
+# The real seats come from the UI (or the auto-configuration, which lists the models each
+# CLI reports), so stale names here do not break a configured install.
 if LLM_PROVIDER == "codex":
     # Codex only serves OpenAI models available to your ChatGPT plan
     COUNCIL_MODELS = [

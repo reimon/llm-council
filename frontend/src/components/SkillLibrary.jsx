@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import { useLang } from '../i18n';
-
-export function skillName(skill, lang) {
-  return skill?.name?.[lang] || skill?.name?.pt || skill?.id || '';
-}
+import { useLang } from '../useLang';
+import { skillName } from './skillName';
 
 export default function SkillLibrary({ installed, onChanged, onClose, seatName, seatSkills, onAttach }) {
   const { t, lang } = useLang();

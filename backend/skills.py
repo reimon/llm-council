@@ -13,6 +13,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from .config import DATA_DIR
+from .jsonfile import write_json
 
 SKILLS_PATH = os.path.join(os.path.dirname(DATA_DIR), "skills.json")
 LOCAL_SKILL_MAX_CHARS = 8000
@@ -203,9 +204,7 @@ def list_installed() -> List[Dict[str, Any]]:
 
 
 def _save(skills: List[Dict[str, Any]]):
-    os.makedirs(os.path.dirname(SKILLS_PATH), exist_ok=True)
-    with open(SKILLS_PATH, "w", encoding="utf-8") as f:
-        json.dump(skills, f, indent=2, ensure_ascii=False)
+    write_json(SKILLS_PATH, skills, ensure_ascii=False)
 
 
 def install(skill_id: str) -> Dict[str, Any]:

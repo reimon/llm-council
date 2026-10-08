@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import CouncilDeliberation from './CouncilDeliberation';
 import Composer, { AttachmentChip } from './Composer';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 import './ChatInterface.css';
 
 export default function ChatInterface({

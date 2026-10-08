@@ -1,4 +1,4 @@
-export function getModelBrand(modelName = '', provider = '') {
+function getModelBrand(modelName = '', provider = '') {
   const name = (modelName || '').toLowerCase();
   const prov = (provider || '').toLowerCase();
 

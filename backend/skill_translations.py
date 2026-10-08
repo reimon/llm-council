@@ -12,6 +12,7 @@ import re
 from typing import Any, Dict, List
 
 from .config import DATA_DIR, LLM_PROVIDER, TITLE_MODEL
+from .jsonfile import write_json
 
 CACHE_PATH = os.path.join(os.path.dirname(DATA_DIR), "skill_translations.json")
 BATCH = 40
@@ -31,9 +32,7 @@ def _load() -> Dict[str, str]:
 
 
 def _save(cache: Dict[str, str]):
-    os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
-    with open(CACHE_PATH, "w", encoding="utf-8") as f:
-        json.dump(cache, f, indent=2, ensure_ascii=False)
+    write_json(CACHE_PATH, cache, ensure_ascii=False)
 
 
 def apply(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

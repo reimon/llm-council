@@ -4,7 +4,7 @@ import ChatInterface from './components/ChatInterface';
 import ConfirmDialog from './components/ConfirmDialog';
 import CouncilRoom from './components/CouncilRoom';
 import { api } from './api';
-import { useLang } from './i18n';
+import { useLang } from './useLang';
 import './App.css';
 
 // Insert or replace a model's partial result, kept in seat order (the order the final
@@ -207,6 +207,8 @@ function App() {
     if (currentConversationId) {
       loadConversation(currentConversationId);
     }
+    // Reload only when the selection changes; loadConversation reads live state through refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConversationId]);
 
   const loadConversations = async () => {

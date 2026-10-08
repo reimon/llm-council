@@ -2,10 +2,15 @@
 
 import json
 import os
+import re
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from .config import DATA_DIR
+from .jsonfile import write_json
+
+# Sidebar metadata per conversation file, reused while the file's mtime/size are unchanged
+_meta_cache: Dict[str, Tuple[Tuple[float, int], Dict[str, Any]]] = {}
 
 
 def ensure_data_dir():
@@ -14,7 +19,9 @@ def ensure_data_dir():
 
 
 def get_conversation_path(conversation_id: str) -> str:
-    """Get the file path for a conversation."""
+    """Get the file path for a conversation. Ids are UUIDs; anything else could escape DATA_DIR."""
+    if not re.fullmatch(r"[0-9a-fA-F\-]{36}", conversation_id or ""):
+        raise ValueError(f"invalid conversation id: {conversation_id!r}")
     return os.path.join(DATA_DIR, f"{conversation_id}.json")
 
 
@@ -30,9 +37,7 @@ def list_projects() -> List[Dict[str, Any]]:
 
 
 def _save_projects(projects: List[Dict[str, Any]]):
-    Path(PROJECTS_PATH).parent.mkdir(parents=True, exist_ok=True)
-    with open(PROJECTS_PATH, "w", encoding="utf-8") as f:
-        json.dump(projects, f, indent=2)
+    write_json(PROJECTS_PATH, projects)
 
 
 def get_project(project_id: str) -> Optional[Dict[str, Any]]:
@@ -84,11 +89,7 @@ def create_conversation(conversation_id: str, project_id: Optional[str] = None) 
         "messages": []
     }
 
-    # Save to file
-    path = get_conversation_path(conversation_id)
-    with open(path, 'w', encoding="utf-8") as f:
-        json.dump(conversation, f, indent=2)
-
+    save_conversation(conversation)
     return conversation
 
 
@@ -102,7 +103,10 @@ def get_conversation(conversation_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Conversation dict or None if not found
     """
-    path = get_conversation_path(conversation_id)
+    try:
+        path = get_conversation_path(conversation_id)
+    except ValueError:
+        return None
 
     if not os.path.exists(path):
         return None
@@ -120,9 +124,7 @@ def save_conversation(conversation: Dict[str, Any]):
     """
     ensure_data_dir()
 
-    path = get_conversation_path(conversation['id'])
-    with open(path, 'w', encoding="utf-8") as f:
-        json.dump(conversation, f, indent=2)
+    write_json(get_conversation_path(conversation['id']), conversation)
 
 
 def list_conversations() -> List[Dict[str, Any]]:
@@ -135,19 +137,39 @@ def list_conversations() -> List[Dict[str, Any]]:
     ensure_data_dir()
 
     conversations = []
+    seen = set()
     for filename in os.listdir(DATA_DIR):
-        if filename.endswith('.json'):
-            path = os.path.join(DATA_DIR, filename)
+        if not filename.endswith('.json') or filename.startswith('.'):
+            continue
+        path = os.path.join(DATA_DIR, filename)
+        seen.add(path)
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        stamp = (st.st_mtime, st.st_size)
+        cached = _meta_cache.get(path)
+        if cached and cached[0] == stamp:
+            conversations.append(dict(cached[1]))
+            continue
+        try:
             with open(path, 'r', encoding="utf-8") as f:
                 data = json.load(f)
-                # Return metadata only
-                conversations.append({
-                    "id": data["id"],
-                    "created_at": data["created_at"],
-                    "title": data.get("title", "Nova conversa"),
-                    "message_count": len(data["messages"]),
-                    "project_id": data.get("project_id")
-                })
+        except (OSError, ValueError) as e:
+            print(f"Skipping unreadable conversation {filename}: {e}")
+            continue
+        meta = {
+            "id": data["id"],
+            "created_at": data["created_at"],
+            "title": data.get("title", "Nova conversa"),
+            "message_count": len(data["messages"]),
+            "project_id": data.get("project_id")
+        }
+        _meta_cache[path] = (stamp, meta)
+        conversations.append(dict(meta))
+    for path in list(_meta_cache):
+        if path not in seen:
+            del _meta_cache[path]
 
     # Sort by creation time, newest first
     conversations.sort(key=lambda x: x["created_at"], reverse=True)
@@ -157,7 +179,10 @@ def list_conversations() -> List[Dict[str, Any]]:
 
 def delete_conversation(conversation_id: str) -> bool:
     """Delete a conversation file. Returns False if it did not exist."""
-    path = get_conversation_path(conversation_id)
+    try:
+        path = get_conversation_path(conversation_id)
+    except ValueError:
+        return False
     if not os.path.exists(path):
         return False
     os.remove(path)

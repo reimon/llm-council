@@ -11,8 +11,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 ### Backend Structure (`backend/`)
 
 **`config.py`**
-- Contains `COUNCIL_MODELS` (list of OpenRouter model identifiers)
-- Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
+- `COUNCIL_MODELS` / `CHAIRMAN_MODEL` only seed the first council when `data/councils.json` does not exist yet; real seats come from the UI or auto-configuration
 - Uses environment variable `OPENROUTER_API_KEY` from `.env`
 - Backend runs on **port 8001** (NOT 8000 - user had another app on 8000)
 
@@ -23,6 +22,8 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Graceful degradation: returns None on failure, continues with successful responses
 
 **`council.py`** - The Core Logic
+- `format_history()` / `with_history()`: follow-up questions carry the last 3 question/final-answer pairs (answers truncated); the worker prefixes the query with them, so all 3 stages see the context
+- `response_label(i)`: "Response A" ... "Response Z", "Response AA", ... (parsers match `Response [A-Z]+`)
 - `stage1_collect_responses()`: Parallel queries to all council models
 - `stage2_collect_rankings()`:
   - Anonymizes responses as "Response A, B, C, etc."
@@ -36,19 +37,21 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **`storage.py`**
 - JSON-based conversation storage in `data/conversations/`
+- All JSON writes go through `jsonfile.write_json()` (temp file + `os.replace`), so a crash never leaves a half-written file
+- Conversation ids must be UUIDs (`get_conversation_path` raises otherwise); `list_conversations` caches sidebar metadata by file mtime/size
 - Each conversation: `{id, created_at, messages[]}`
 - Assistant messages contain: `{role, stage1, stage2, stage3}`
 - Metadata (label_to_model, aggregate_rankings) is persisted on each assistant message
 
 **Council setup** (`council_config.py`, `providers.py`, `components/CouncilRoom.jsx`)
-- Seats live in `data/council.json` (`members[]` with provider/model/role/enabled, plus `chairman`); without the file a default is built from `COUNCIL_MODELS`/`CHAIRMAN_MODEL`
+- Councils live in `data/councils.json` (each with `members[]` with provider/model/role/enabled, plus `chairman`); without the file a default is built from `COUNCIL_MODELS`/`CHAIRMAN_MODEL`
 - Seat `name` labels results everywhere (Stage 1/2 tabs, label_to_model), so `save_council` makes names unique
 - `providers.query_member()` routes by provider: codex (`codex exec`), claude (`claude -p`, write tools disallowed, `--add-dir` for project/attachments), antigravity (`agy -p --mode plan`), openrouter
 - Roles add a persona prompt in Stage 1 only; Stage 2 ranking stays neutral
 
 **Projects** (`storage.py`, `main.py`, `codex_client.py`)
 - Projects (`{id, name, path}`) live in `data/projects.json`; conversations carry `project_id`
-- For project chats the API sets the `project_dir` contextvar in `codex_client.py`, so every Codex call in Stages 1-3 runs with `-C <path>` (read-only sandbox) plus a preamble telling the model to read the code; timeout rises to 900s
+- For project chats the API sets the `project_dir` contextvar in `codex_client.py` (regardless of `LLM_PROVIDER`), so every CLI call in Stages 1-3 runs in the project folder (Codex: `-C <path>`, read-only sandbox) plus a preamble telling the model to read the code; timeout rises to 900s
 - The title task is created before the contextvar is set, so titles stay a plain call
 - `/api/pick-folder` opens the macOS folder picker via `osascript`
 
@@ -58,7 +61,9 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **`main.py`**
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
-- POST `/api/conversations/{id}/message` returns metadata in addition to stages
+- `local_only_guard` middleware: rejects a non-local `Host` (DNS rebinding) while bound to localhost, and requires the `X-LLM-Council: 1` header on every non-GET `/api/` request (CSRF). `frontend/src/api.js` adds it through `request()`; use that helper for new calls
+- The council runs only through POST `/api/conversations/{id}/message/stream` (`run_deliberation_worker`); GET `.../events` reattaches to a running one
+- If no seat answers in Stage 1, the worker skips Stages 2-3 and saves an "Error:" assistant message listing each seat's last error
 - Metadata includes: label_to_model mapping and aggregate_rankings
 
 ### Frontend Structure (`frontend/src/`)
@@ -145,7 +150,7 @@ All backend modules use relative imports (e.g., `from .config import ...`) not a
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
 ### Model Configuration
-Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is Gemini as chairman per user preference.
+Seats and chairman are configured in the UI (Council Room) and saved in `data/councils.json`; `backend/config.py` only provides the first-run default. Chairman can be same or different from council members.
 
 ## Common Gotchas
 
@@ -156,8 +161,6 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 
 ## Future Enhancement Ideas
 
-- Configurable council/chairman via UI instead of config file
-- Streaming responses instead of batch loading
 - Export conversations to markdown/PDF
 - Model performance analytics over time
 - Custom ranking criteria (not just accuracy/insight)
@@ -165,7 +168,9 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 
 ## Testing Notes
 
-Use `test_openrouter.py` to verify API connectivity and test different model identifiers before adding to council. The script tests both streaming and non-streaming modes.
+- Backend: `uv run pytest` (tests in `tests/`: ranking parser, aggregation, history, storage, API guard and worker). The `data_dir` fixture points storage at a temp folder
+- Frontend: `cd frontend && npm run lint && npm run build`
+- Shared non-component helpers live in their own modules (`components/tokens.js`, `roles.js`, `skillName.js`, `src/useLang.js`) so `react-refresh/only-export-components` stays clean
 
 ## Data Flow Summary
 

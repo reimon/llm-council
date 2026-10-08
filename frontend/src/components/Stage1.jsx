@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useLang } from '../i18n';
-import { ROLE_META } from './CouncilRoom';
+import { useLang } from '../useLang';
+import { ROLE_META } from './roles';
 import './Stage1.css';
 
 export default function Stage1({ responses }) {

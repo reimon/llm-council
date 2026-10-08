@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {

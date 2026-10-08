@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import ModelIcon, { getModelBrand } from './ModelIcon';
+import ModelIcon from './ModelIcon';
+import { calculateLiveTokens, tokenText, usageTitle } from './tokens';
 
 // Color themes per stage
 const STAGE_COLORS = {
@@ -21,51 +22,6 @@ const MEMBER_PALETTE = [
   0x14b8a6, // Teal
 ];
 
-// Calculate live tokens ticking up
-export function calculateLiveTokens({
-  status,
-  duration,
-  finalTokens,
-  startedAt,
-  deliberationStartedAt,
-  index = 0,
-  isProject = false,
-  currentTime = Date.now(),
-}) {
-  if (status === 'waiting') {
-    return { tokens: 0, rate: 0, isLive: false };
-  }
-
-  // The CLIs don't report token usage while running, so nothing is invented here:
-  // a running model shows elapsed time, a finished one the backend's size estimate.
-  if (status === 'completed') {
-    return { tokens: finalTokens || 0, rate: 0, isLive: false, elapsed: duration || 0 };
-  }
-
-  if (status === 'thinking') {
-    const start = startedAt || deliberationStartedAt || currentTime;
-    const elapsed = Math.max(0, Math.floor((currentTime - start) / 1000));
-    return { tokens: 0, rate: 0, isLive: true, elapsed };
-  }
-
-  return { tokens: 0, rate: 0, isLive: false };
-}
-
-// "~" marks a size estimate; CLIs that report usage (Claude Code, Antigravity) give exact counts
-export function tokenText(count, real) {
-  return `${real ? '' : '~'}${formatTokenCount(count)}`;
-}
-
-export function usageTitle(usage) {
-  if (!usage) return 'Estimativa pelo tamanho da resposta';
-  return `Entrada ${formatTokenCount(usage.input_tokens)}, saída ${formatTokenCount(usage.output_tokens)}, pensamento ${formatTokenCount(usage.thinking_tokens)}`;
-}
-
-export function formatTokenCount(count) {
-  if (!count && count !== 0) return '0';
-  return count.toLocaleString('pt-BR');
-}
-
 export default function Council3DVisualizer({
   members = [],
   chairman = null,
@@ -84,7 +40,7 @@ export default function Council3DVisualizer({
 
   const [autoRotate, setAutoRotate] = useState(autoRotateDefault);
   const [hoveredModel, setHoveredModel] = useState(null);
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   // Mutable refs for Three.js state
   const stateRef = useRef({
@@ -107,7 +63,13 @@ export default function Council3DVisualizer({
     clock: new THREE.Clock(),
     raycaster: new THREE.Raycaster(),
     mouse: new THREE.Vector2(-999, -999),
+    autoRotate: autoRotateDefault,
   });
+
+  // The animation loop is set up once, so it reads the toggle from the ref
+  useEffect(() => {
+    stateRef.current.autoRotate = autoRotate;
+  }, [autoRotate]);
 
   // High-frequency live token ticker (every 80ms for realistic smooth counter)
   useEffect(() => {
@@ -121,6 +83,7 @@ export default function Council3DVisualizer({
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
+    const sceneState = stateRef.current;
     if (!container || !canvas) return;
 
     const width = container.clientWidth || 700;
@@ -276,7 +239,7 @@ export default function Council3DVisualizer({
       const time = state.clock.elapsedTime;
 
       // Camera Spherical Interpolation
-      if (autoRotate && !state.isDragging) {
+      if (state.autoRotate && !state.isDragging) {
         state.targetSpherical.theta += 0.12 * dt; // radians per second
       }
 
@@ -396,8 +359,8 @@ export default function Council3DVisualizer({
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (stateRef.current.animId) {
-        cancelAnimationFrame(stateRef.current.animId);
+      if (sceneState.animId) {
+        cancelAnimationFrame(sceneState.animId);
       }
       renderer.dispose();
     };

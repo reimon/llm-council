@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import Council3DVisualizer, { calculateLiveTokens, formatTokenCount, tokenText, usageTitle } from './Council3DVisualizer';
+import Council3DVisualizer from './Council3DVisualizer';
+import { calculateLiveTokens, tokenText, usageTitle } from './tokens';
 import ModelIcon from './ModelIcon';
-import { useLang } from '../i18n';
+import { useLang } from '../useLang';
 import './CouncilDeliberation.css';
 
 export default function CouncilDeliberation({
@@ -14,8 +15,7 @@ export default function CouncilDeliberation({
   const [viewMode, setViewMode] = useState('3d'); // '3d' | 'compact'
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const activeStage = deliberation?.activeStage || (loading?.stage3 ? 3 : loading?.stage2 ? 2 : 1);
   const isDone = isComplete || activeStage === 'done';
@@ -28,23 +28,12 @@ export default function CouncilDeliberation({
     return () => clearInterval(interval);
   }, []);
 
-  // Live timer counting elapsed seconds
-  useEffect(() => {
-    if (!deliberation?.startedAt) return;
-    if (isDone && deliberation?.completedAt) {
-      const total = Math.max(1, Math.round((deliberation.completedAt - deliberation.startedAt) / 1000));
-      setElapsedSeconds(total);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const secs = Math.max(0, Math.floor((now - deliberation.startedAt) / 1000));
-      setElapsedSeconds(secs);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [deliberation?.startedAt, deliberation?.completedAt, isDone]);
+  // Elapsed time, derived from the ticker above (frozen at the real duration once done)
+  const elapsedSeconds = !deliberation?.startedAt
+    ? 0
+    : isDone && deliberation?.completedAt
+      ? Math.max(1, Math.round((deliberation.completedAt - deliberation.startedAt) / 1000))
+      : Math.max(0, Math.floor((currentTime - deliberation.startedAt) / 1000));
 
   // Format mm:ss
   const formatTimer = (totalSecs) => {

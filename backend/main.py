@@ -1,35 +1,59 @@
 """FastAPI backend for LLM Council."""
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
-import subprocess
 import uuid
 import json
 import asyncio
 
 from . import storage
 from . import platform_utils
-from .config import LLM_PROVIDER
 from .codex_client import project_dir, attached_images
 from . import attachments as attachments_mod
 from . import council_config
 from . import skills as skills_mod
 from . import skill_translations
-from .providers import extra_dirs, query_member
+from .providers import extra_dirs, query_member, LAST_ERRORS
 import time
-from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .council import (
+    generate_conversation_title, stage1_collect_responses, stage2_collect_rankings,
+    stage3_synthesize_final, calculate_aggregate_rankings, response_label, format_history, with_history,
+)
 
 app = FastAPI(title="LLM Council API")
 
-# Enable CORS for local development
+ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
+# Sent by the frontend on every write. A custom header makes the browser ask CORS first,
+# so other websites open in the same browser cannot drive the API (CSRF).
+CSRF_HEADER = "x-llm-council"
+
+
+@app.middleware("http")
+async def local_only_guard(request: Request, call_next):
+    bind_host = os.getenv("LLM_COUNCIL_HOST", "127.0.0.1")
+    host = request.headers.get("host", "").rsplit(":", 1)[0]
+    # DNS rebinding: a hostile domain resolved to 127.0.0.1 still sends its own Host header
+    if bind_host in LOCAL_HOSTS and host not in LOCAL_HOSTS:
+        return JSONResponse({"detail": "Host not allowed"}, status_code=403)
+    if (
+        request.method not in ("GET", "HEAD", "OPTIONS")
+        and request.url.path.startswith("/api/")
+        and request.headers.get(CSRF_HEADER) != "1"
+    ):
+        return JSONResponse({"detail": f"Missing {CSRF_HEADER} header"}, status_code=403)
+    return await call_next(request)
+
+
+# Enable CORS for local development (added last so it runs first and answers preflights)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -302,7 +326,7 @@ async def get_conversation(conversation_id: str):
     for msg in conversation["messages"]:
         if msg.get("role") == "assistant" and not msg.get("metadata") and msg.get("stage1") and msg.get("stage2"):
             label_to_model = {
-                f"Response {chr(65 + i)}": r["model"] for i, r in enumerate(msg["stage1"])
+                response_label(i): r["model"] for i, r in enumerate(msg["stage1"])
             }
             msg["metadata"] = {
                 "label_to_model": label_to_model,
@@ -322,63 +346,6 @@ async def delete_conversation(conversation_id: str):
     if not storage.delete_conversation(conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"status": "deleted"}
-
-
-@app.post("/api/conversations/{conversation_id}/message")
-async def send_message(conversation_id: str, request: SendMessageRequest):
-    """
-    Send a message and run the 3-stage council process.
-    Returns the complete response with all stages.
-    """
-    # Check if conversation exists
-    conversation = storage.get_conversation(conversation_id)
-    if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
-    # Check if this is the first message
-    is_first_message = len(conversation["messages"]) == 0
-
-    # Add user message
-    council_config.selected_council.set(request.council_id)
-    chosen = council_config.load_council()
-    storage.add_user_message(
-        conversation_id, request.content, request.attachments,
-        council={"id": chosen["id"], "name": chosen["name"]},
-    )
-
-    # If this is the first message, generate a title
-    if is_first_message:
-        title = await generate_conversation_title(request.content)
-        storage.update_conversation_title(conversation_id, title)
-
-    pid = conversation.get("project_id")
-    project = storage.get_project(pid) if pid else None
-    if project and LLM_PROVIDER == "codex":
-        project_dir.set(project["path"])
-
-    query, images = await attachments_mod.build_context(request.content, request.attachments)
-    attached_images.set(tuple(images))
-    extra_dirs.set(tuple(x["path"] for x in request.attachments if x.get("kind") == "folder"))
-
-    # Run the 3-stage council process
-    stage1_results, stage2_results, stage3_result, metadata = await run_full_council(query)
-
-    # Add assistant message with all stages
-    storage.add_assistant_message(
-        conversation_id,
-        stage1_results,
-        stage2_results,
-        stage3_result,
-        metadata
-    )
-
-    # Return the complete response with metadata
-    return {
-        "stage1": stage1_results,
-        "stage2": stage2_results,
-        "stage3": stage3_result,
-        "metadata": metadata
-    }
 
 
 class DeliberationSession:
@@ -473,18 +440,21 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
         if is_first_message:
             title_task = asyncio.create_task(generate_conversation_title(request.content))
 
-        # Point the council at the project folder (title task above stays general)
+        # Point the council at the project folder (title task above stays general).
+        # Every CLI provider reads it; OpenRouter seats simply ignore it.
         pid = conversation.get("project_id")
         project = storage.get_project(pid) if pid else None
-        if project and LLM_PROVIDER == "codex":
-            project_dir.set(project["path"])
-        else:
-            project_dir.set(None)
+        project_dir.set(project["path"] if project and os.path.isdir(project["path"]) else None)
 
         # Fold attachments into the question; images go to the models as files
         query, images = await attachments_mod.build_context(request.content, request.attachments)
+        # Follow-ups carry the earlier questions and final answers
+        query = with_history(query, format_history(conversation["messages"]))
         attached_images.set(tuple(images))
-        extra_dirs.set(tuple(x["path"] for x in request.attachments if x.get("kind") == "folder"))
+        extra_dirs.set(tuple(
+            os.path.realpath(x["path"]) for x in request.attachments
+            if x.get("kind") == "folder" and os.path.isdir(x.get("path") or "")
+        ))
 
         members = council_config.active_members()
         council_data = council_config.load_council()
@@ -518,6 +488,26 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
         await session.emit({"type": "stage1_start", "models": [m["name"] for m in members]})
         stage1_results = await stage1_collect_responses(query, on_event=session.emit)
         await session.emit({"type": "stage1_complete", "data": stage1_results})
+
+        if not stage1_results:
+            # Nobody answered: ranking and synthesis would only burn calls on an empty council
+            reasons = "\n".join(
+                "- {}: {}".format(
+                    m["name"],
+                    LAST_ERRORS.get(f"{m.get('provider', 'codex')}:{m.get('model', '')}", "sem detalhes"),
+                )
+                for m in members
+            )
+            failure = {
+                "model": "error",
+                "response": "Error: nenhum membro do conselho respondeu. Tente novamente.\n\n" + reasons,
+            }
+            if title_task:
+                title_task.cancel()
+            storage.add_assistant_message(conversation_id, [], [], failure, None)
+            await session.emit({"type": "stage3_complete", "data": failure})
+            await session.emit({"type": "complete"})
+            return
 
         # Stage 2: Collect rankings
         await session.emit({"type": "stage2_start", "models": [m["name"] for m in members]})
