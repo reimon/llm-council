@@ -132,7 +132,10 @@ async def query_member(member: Dict[str, Any], messages: List[Dict[str, str]], t
         return await openrouter_query(model, messages, timeout)
 
     if provider == "claude":
-        args = [resolve_bin("claude"), "-p", "--output-format", "json", "--disallowedTools", CLAUDE_BLOCKED_TOOLS]
+        args = [
+            resolve_bin("claude"), "-p", "--output-format", "json", "--disallowedTools",
+            *CLAUDE_BLOCKED_TOOLS.split(),
+        ]
         if model:
             args += ["--model", model]
         for d in _readable_dirs():
