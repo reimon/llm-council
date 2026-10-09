@@ -27,6 +27,12 @@ from .council import (
 
 app = FastAPI(title="LLM Council API")
 
+
+@app.on_event("shutdown")
+def kill_cli_processes():
+    # CLIs run in their own process group, so Ctrl+C on the server does not reach them
+    platform_utils.kill_all()
+
 ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
 # Sent by the frontend on every write. A custom header makes the browser ask CORS first,
@@ -358,6 +364,7 @@ class DeliberationSession:
         self.task: Optional[asyncio.Task] = None
         self.completed_at: Optional[float] = None
         self.started_at: float = time.time()
+        self.stopped: bool = False
 
     async def emit(self, event_dict: Dict[str, Any]):
         # Per-model answers ride on model_complete only until the stage result carries them;
@@ -419,6 +426,11 @@ def cleanup_old_deliberations():
 
 async def run_deliberation_worker(session: DeliberationSession, request: SendMessageRequest):
     conversation_id = session.conversation_id
+    title_task = None
+    user_saved = False
+    stage1_results: List[Dict[str, Any]] = []
+    stage2_results: List[Dict[str, Any]] = []
+    stage2_meta: Optional[Dict[str, Any]] = None
     try:
         conversation = storage.get_conversation(conversation_id)
         if conversation is None:
@@ -434,9 +446,9 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
             conversation_id, request.content, request.attachments,
             council={"id": chosen["id"], "name": chosen["name"]},
         )
+        user_saved = True
 
         # Start title generation in parallel (don't await yet)
-        title_task = None
         if is_first_message:
             title_task = asyncio.create_task(generate_conversation_title(request.content))
 
@@ -513,6 +525,7 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
         await session.emit({"type": "stage2_start", "models": [m["name"] for m in members]})
         stage2_results, label_to_model = await stage2_collect_rankings(query, stage1_results, on_event=session.emit)
         aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
+        stage2_meta = {"label_to_model": label_to_model, "aggregate_rankings": aggregate_rankings}
         await session.emit({
             "type": "stage2_complete",
             "data": stage2_results,
@@ -577,7 +590,20 @@ async def run_deliberation_worker(session: DeliberationSession, request: SendMes
         await session.emit({"type": "complete"})
 
     except asyncio.CancelledError:
-        pass
+        if title_task:
+            title_task.cancel()
+        if session.stopped and user_saved:
+            # Keep what already arrived; answers that landed before Stop are in the event log
+            if not stage1_results:
+                stage1_results = [
+                    {"model": ev["model"], "role": ev.get("role", "generalist"), "response": ev["content"]}
+                    for ev in session.events
+                    if ev.get("type") == "model_complete" and ev.get("stage") == 1 and ev.get("content")
+                ]
+            stopped = {"model": "stopped", "response": "Deliberação interrompida pelo usuário.", "stopped": True}
+            storage.add_assistant_message(conversation_id, stage1_results, stage2_results, stopped, stage2_meta)
+            await session.emit({"type": "stopped"})
+            await session.emit({"type": "complete"})
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -627,6 +653,21 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             "Connection": "keep-alive",
         }
     )
+
+
+@app.post("/api/conversations/{conversation_id}/stop")
+async def stop_deliberation(conversation_id: str):
+    """Stop a running deliberation and kill every CLI it started."""
+    session = active_deliberations.get(conversation_id)
+    if session is None or session.done or session.task is None:
+        return {"status": "idle"}
+    session.stopped = True
+    session.task.cancel()
+    try:
+        await asyncio.wait_for(asyncio.shield(session.task), timeout=10)
+    except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+        pass
+    return {"status": "stopped"}
 
 
 @app.get("/api/conversations/{conversation_id}/events")

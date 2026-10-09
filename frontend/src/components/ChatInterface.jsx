@@ -12,6 +12,7 @@ export default function ChatInterface({
   conversation,
   onSendMessage,
   onRetryDeliberation,
+  onStopDeliberation,
   isLoading,
 }) {
   const { t, councilLabel } = useLang();
@@ -115,6 +116,7 @@ export default function ChatInterface({
                       loading={msg.loading}
                       isComplete={!msg.loading?.stage1 && !msg.loading?.stage2 && !msg.loading?.stage3 && !!msg.stage3}
                       project={project}
+                      onStop={msg.deliberation && !msg.stage3 && onStopDeliberation ? onStopDeliberation : null}
                     />
                   )}
 

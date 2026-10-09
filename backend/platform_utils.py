@@ -2,12 +2,47 @@
 
 import os
 import shutil
+import signal
 import subprocess
 import sys
 from typing import Optional
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
+
+# CLI processes still running, so Stop and shutdown can kill them
+LIVE_PROCS: set = set()
+
+
+def spawn_kwargs() -> dict:
+    """Start a CLI in its own process group, so killing it also kills the helpers it spawns."""
+    if IS_WINDOWS:
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def kill_tree(proc) -> None:
+    """Kill a CLI started with spawn_kwargs() together with its children."""
+    if proc.returncode is not None:
+        return
+    try:
+        if IS_WINDOWS:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    except OSError:
+        pass
+    try:
+        proc.kill()
+    except (OSError, ProcessLookupError):
+        pass
+
+
+def kill_all() -> None:
+    for proc in list(LIVE_PROCS):
+        kill_tree(proc)
+    LIVE_PROCS.clear()
+
 
 # Windows caps a command line at 32,767 characters; stay well under it.
 MAX_ARG_CHARS = 24000

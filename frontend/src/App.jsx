@@ -521,6 +521,16 @@ function App() {
     }
   };
 
+  const handleStopDeliberation = async () => {
+    const convId = currentConversationId;
+    if (!convId) return;
+    try {
+      await api.stopDeliberation(convId);
+    } catch (error) {
+      console.error('Failed to stop deliberation:', error);
+    }
+  };
+
   const handleRetryDeliberation = (lastUserMsg) => {
     if (!lastUserMsg) return;
     handleSendMessage(
@@ -557,6 +567,7 @@ function App() {
           conversation={currentConversation}
           onSendMessage={handleSendMessage}
           onRetryDeliberation={handleRetryDeliberation}
+          onStopDeliberation={handleStopDeliberation}
           isLoading={isLoading}
         />
       )}

@@ -7,6 +7,9 @@ export default function Stage3({ finalResponse }) {
   if (!finalResponse) {
     return null;
   }
+  if (finalResponse.stopped) {
+    return <div className="stage3-stopped">{t('stoppedByUser')}</div>;
+  }
 
   return (
     <div className="stage stage3">

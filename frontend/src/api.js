@@ -240,6 +240,14 @@ export const api = {
     return response.json();
   },
 
+  async stopDeliberation(conversationId) {
+    const response = await request(`${API_BASE}/api/conversations/${conversationId}/stop`, { method: 'POST' });
+    if (!response.ok) {
+      throw new Error('Failed to stop deliberation');
+    }
+    return response.json();
+  },
+
   /**
    * Send a message and receive streaming updates.
    * @param {string} conversationId - The conversation ID

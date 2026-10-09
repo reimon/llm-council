@@ -6,7 +6,7 @@ import os
 import tempfile
 from typing import List, Dict, Any, Optional
 from .config import CODEX_BIN
-from .platform_utils import resolve_bin
+from .platform_utils import resolve_bin, spawn_kwargs, kill_tree, LIVE_PROCS
 
 # Folder of the project the current question is about (None = general question).
 # Set by the API around the council stages; asyncio tasks inherit it.
@@ -63,12 +63,19 @@ async def query_model(
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
+            **spawn_kwargs(),
         )
+        LIVE_PROCS.add(proc)
         try:
             _, stderr = await asyncio.wait_for(proc.communicate(prompt.encode()), timeout)
         except asyncio.TimeoutError:
-            proc.kill()
+            kill_tree(proc)
             raise RuntimeError(f"timed out after {timeout}s")
+        except asyncio.CancelledError:
+            kill_tree(proc)
+            raise
+        finally:
+            LIVE_PROCS.discard(proc)
 
         if proc.returncode != 0:
             raise RuntimeError(stderr.decode(errors="ignore")[-500:])

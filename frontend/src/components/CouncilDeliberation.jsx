@@ -10,15 +10,41 @@ export default function CouncilDeliberation({
   loading = {},
   isComplete = false,
   project = null,
+  onStop = null,
 }) {
   const { t } = useLang();
   const [viewMode, setViewMode] = useState('3d'); // '3d' | 'compact'
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [stopping, setStopping] = useState(false);
 
   const activeStage = deliberation?.activeStage || (loading?.stage3 ? 3 : loading?.stage2 ? 2 : 1);
   const isDone = isComplete || activeStage === 'done';
+
+  // Esc closes the expanded 3D view
+  useEffect(() => {
+    if (!isExpanded) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setIsExpanded(false); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isExpanded]);
+
+  const handleStop = async () => {
+    if (!onStop || stopping) return;
+    setStopping(true);
+    try {
+      await onStop();
+    } finally {
+      setStopping(false);
+    }
+  };
 
   // Real-time ticker for live tokens accumulation and smooth counting
   useEffect(() => {
@@ -158,6 +184,35 @@ export default function CouncilDeliberation({
             <span>{deliberation?.startedAt ? formatTimer(elapsedSeconds) : "--:--"}</span>
           </div>
 
+          {/* Stop the whole deliberation */}
+          {!isDone && onStop && (
+            <button
+              type="button"
+              className="deliberation-stop-btn"
+              onClick={handleStop}
+              disabled={stopping}
+              title={t('stopDeliberationHint')}
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
+              {stopping ? t('stopping') : t('stopDeliberation')}
+            </button>
+          )}
+
+          {/* Expand the 3D view to the whole window */}
+          {viewMode === '3d' && !isCollapsed && (
+            <button
+              type="button"
+              className="deliberation-toggle-btn deliberation-expand-btn"
+              onClick={() => setIsExpanded(true)}
+              title={t('expand3d')}
+              aria-label={t('expand3d')}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            </button>
+          )}
+
           {/* 3D vs Compact toggle */}
           <button
             type="button"
@@ -222,7 +277,7 @@ export default function CouncilDeliberation({
           </div>
 
           {/* 3D Visualizer Canvas with 3D-pinned labels and real-time token tracking */}
-          {viewMode === '3d' && (
+          {viewMode === '3d' && !isExpanded && (
             <Council3DVisualizer
               members={memberList}
               chairman={deliberation?.chairman}
@@ -342,6 +397,66 @@ export default function CouncilDeliberation({
             )}
           </div>
         </>
+      )}
+      {isExpanded && viewMode === '3d' && (
+        <div className="council-3d-overlay" role="dialog" aria-modal="true" aria-label={t('deliberationTitle')}>
+          <div className="council-3d-overlay-bar">
+            <div className="deliberation-headline">
+              <div className={`status-orb-pulse ${isDone ? 'done' : `stage-${activeStage}`}`} />
+              <div className="headline-text">
+                <h3>{isDone ? t('deliberationComplete') : t('deliberationTitle')}</h3>
+                {!isDone && (
+                  <span className="overlay-stage">
+                    {activeStage === 1 ? t('stage1Name') : activeStage === 2 ? t('stage2Name') : t('stage3Name')}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="deliberation-actions">
+              <div className="deliberation-tokens-badge">
+                <span className="tokens-bolt">⚡</span>
+                <span className="tokens-val">
+                  {tokenText(totalTokens, memberList.length > 0 && memberList.every((m) => m.tokensReal))}
+                </span>
+                <span className="tokens-unit">tokens</span>
+              </div>
+              <div className="deliberation-timer">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>{deliberation?.startedAt ? formatTimer(elapsedSeconds) : '--:--'}</span>
+              </div>
+              {!isDone && onStop && (
+                <button type="button" className="deliberation-stop-btn" onClick={handleStop} disabled={stopping}>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
+                  {stopping ? t('stopping') : t('stopDeliberation')}
+                </button>
+              )}
+              <button
+                type="button"
+                className="deliberation-toggle-btn"
+                onClick={() => setIsExpanded(false)}
+                title={t('close3d')}
+                aria-label={t('close3d')}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="council-3d-overlay-stage">
+            <Council3DVisualizer
+              members={memberList}
+              chairman={deliberation?.chairman}
+              activeStage={activeStage}
+              isComplete={isDone}
+              isProject={!!project}
+              deliberationStartedAt={deliberation?.startedAt}
+              selectedModel={selectedModel}
+              onSelectModel={(name) => setSelectedModel(name === selectedModel ? null : name)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

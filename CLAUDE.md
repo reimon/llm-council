@@ -63,6 +63,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
 - `local_only_guard` middleware: rejects a non-local `Host` (DNS rebinding) while bound to localhost, and requires the `X-LLM-Council: 1` header on every non-GET `/api/` request (CSRF). `frontend/src/api.js` adds it through `request()`; use that helper for new calls
 - The council runs only through POST `/api/conversations/{id}/message/stream` (`run_deliberation_worker`); GET `.../events` reattaches to a running one
+- POST `.../stop` cancels the worker; CLIs run in their own process group (`platform_utils.spawn_kwargs`) and are killed with `kill_tree` on cancel, timeout and server shutdown. A stopped run saves the answers that already arrived plus a `stage3` with `stopped: true`
 - If no seat answers in Stage 1, the worker skips Stages 2-3 and saves an "Error:" assistant message listing each seat's last error
 - Metadata includes: label_to_model mapping and aggregate_rankings
 

@@ -737,3 +737,83 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Stop button */
+.deliberation-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(220, 38, 38, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 8px;
+  color: #fecaca;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.deliberation-stop-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.32);
+  border-color: rgba(248, 113, 113, 0.8);
+  color: #fff;
+}
+.deliberation-stop-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.deliberation-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Expanded 3D view */
+.council-3d-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 50% 45%, #121c3a 0%, #070b18 60%, #03050c 100%);
+  animation: council-overlay-in 0.28s ease-out;
+}
+@keyframes council-overlay-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+.council-3d-overlay-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 22px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+  background: linear-gradient(180deg, rgba(8, 12, 26, 0.92), rgba(8, 12, 26, 0.6));
+  backdrop-filter: blur(8px);
+}
+.council-3d-overlay-bar h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #f1f5f9;
+}
+.council-3d-overlay .overlay-stage {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.council-3d-overlay-stage {
+  flex: 1;
+  min-height: 0;
+  padding: 18px;
+}
+.council-3d-overlay-stage .council-3d-container {
+  height: 100%;
+  border-radius: 18px;
+  border-color: rgba(129, 140, 248, 0.35);
+  box-shadow: 0 0 80px rgba(79, 70, 229, 0.18) inset, 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+@media (max-width: 720px) {
+  .council-3d-overlay-bar { flex-wrap: wrap; padding: 10px 14px; }
+  .council-3d-overlay-stage { padding: 8px; }
+}

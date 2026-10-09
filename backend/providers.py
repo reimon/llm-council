@@ -8,7 +8,7 @@ import tempfile
 from typing import Any, Dict, List, Optional
 
 from . import codex_client
-from .platform_utils import resolve_bin, MAX_ARG_CHARS
+from .platform_utils import resolve_bin, MAX_ARG_CHARS, spawn_kwargs, kill_tree, LIVE_PROCS
 from .codex_client import project_dir, attached_images, PROJECT_PREAMBLE, _messages_to_prompt
 
 # Last failure message per "provider:model", shown by the auto-configuration report.
@@ -94,14 +94,22 @@ async def _run_cli(
             stdin=asyncio.subprocess.PIPE if stdin is not None else asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            **spawn_kwargs(),
         )
+        LIVE_PROCS.add(proc)
         try:
             out, err = await asyncio.wait_for(
                 proc.communicate(stdin.encode() if stdin is not None else None), timeout
             )
         except asyncio.TimeoutError:
-            proc.kill()
+            kill_tree(proc)
             raise RuntimeError(f"timed out after {timeout}s")
+        except asyncio.CancelledError:
+            # Stop button: do not leave the CLI running in the background
+            kill_tree(proc)
+            raise
+        finally:
+            LIVE_PROCS.discard(proc)
         raw = out.decode(errors="ignore").strip()
         if proc.returncode != 0:
             # JSON-mode CLIs report the real reason (e.g. an expired login) on stdout
